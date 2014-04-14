@@ -21,6 +21,11 @@ import com.rabbitmq.client.QueueingConsumer;
 import com.rabbitmq.client.ShutdownSignalException;
 import com.rabbitmq.client.QueueingConsumer.Delivery;
 
+/**
+ * 
+ * @author Sergi Toda <sergi.toda@estudiants.urv.cat>
+ * 
+ */
 public abstract class AInvocationThread extends Thread {
 
 	private static final Logger logger = Logger.getLogger(AInvocationThread.class.getName());

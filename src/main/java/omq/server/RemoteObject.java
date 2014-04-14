@@ -29,7 +29,10 @@ public abstract class RemoteObject implements Remote {
 	private static final long serialVersionUID = -1778953938739846450L;
 	private static final Logger logger = Logger.getLogger(RemoteObject.class.getName());
 
+	// Represents a reference which identifies all the objects of the same type
 	private String reference;
+	// If it's set it represents the Unique ID of an object bound with the above
+	// reference
 	private String UID;
 	private Properties env;
 	private transient Broker broker;
@@ -81,6 +84,18 @@ public abstract class RemoteObject implements Remote {
 		pool.startPool();
 	}
 
+	/**
+	 * This function is a hack that allows to differentiate objects under the
+	 * same reference
+	 * 
+	 * @param reference
+	 *            - typical bound name
+	 * @param UID
+	 *            - Unique identifier of this particular object
+	 * @param broker
+	 * @param env
+	 * @throws Exception
+	 */
 	public void startRemoteObject(String reference, String UID, Broker broker, Properties env) throws Exception {
 		this.UID = UID;
 		startRemoteObject(reference, broker, env);

@@ -384,4 +384,8 @@ public class Broker {
 	public Serializer getSerializer() {
 		return serializer;
 	}
+
+	public Map<String, RemoteObject> getRemoteObjs() {
+		return remoteObjs;
+	}
 }
