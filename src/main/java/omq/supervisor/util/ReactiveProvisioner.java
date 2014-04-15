@@ -28,7 +28,7 @@ public class ReactiveProvisioner extends Provisioner {
 					int numServersNeeded = getNumServersNeeded(obs, pred);
 
 					// Ask how many servers are
-					int numServersNow = 0;
+					int numServersNow = supervisor.getNumServersWithObject();
 
 					int diff = numServersNeeded - numServersNow;
 

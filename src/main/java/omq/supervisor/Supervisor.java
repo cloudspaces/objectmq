@@ -75,6 +75,14 @@ public class Supervisor {
 		return list;
 	}
 
+	public int getNumServersWithObject() {
+		try {
+			return whoHasObject(true).size();
+		} catch (RetryException e) {
+			return 0;
+		}
+	}
+
 	// TODO create an specific exception when it's impossible to create a new
 	// object
 	public synchronized void createObjects(int numRequired) throws Exception {
