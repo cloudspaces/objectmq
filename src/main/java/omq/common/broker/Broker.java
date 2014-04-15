@@ -18,6 +18,7 @@ import omq.exception.AlreadyBoundException;
 import omq.exception.InitBrokerException;
 import omq.exception.RemoteException;
 import omq.server.RemoteObject;
+import omq.supervisor.broker.RemoteBrokerImpl;
 
 import org.apache.log4j.Logger;
 
@@ -50,6 +51,9 @@ public class Broker {
 	private Map<String, RemoteObject> remoteObjs;
 	private Map<String, Object> proxies = new Hashtable<String, Object>();
 	private Map<String, Object> multiProxies = new Hashtable<String, Object>();
+
+	// One statistics thread per reference
+	private Map<String, StatisticsThread> statisticsMap;
 
 	public Broker(Properties env) throws Exception {
 		// Load log4j configuration
@@ -233,6 +237,10 @@ public class Broker {
 		bind(reference, remote, environment);
 	}
 
+	private void bind(String reference, String UID, RemoteObject remote) throws RemoteException, AlreadyBoundException {
+		bind(reference, UID, remote, environment);
+	}
+
 	/**
 	 * Binds the reference to the specified remote object. This function uses
 	 * the broker's environment
@@ -257,6 +265,27 @@ public class Broker {
 		// Try to start the remtoeObject listeners
 		try {
 			remote.startRemoteObject(reference, this, env);
+			remoteObjs.put(reference, remote);
+
+			// If this broker is monitored, then add a new thread -theres no
+			// need to check whether the statistic thread exists or not
+			if (statisticsMap != null) {
+				StatisticsThread stats = new StatisticsThread();
+				statisticsMap.put(reference, stats);
+				stats.start();
+			}
+		} catch (Exception e) {
+			throw new RemoteException(e);
+		}
+	}
+
+	private void bind(String reference, String UID, RemoteObject remote, Properties env) throws RemoteException, AlreadyBoundException {
+		if (remoteObjs.containsKey(reference)) {
+			throw new AlreadyBoundException(reference);
+		}
+		// Try to start the remtoeObject listeners
+		try {
+			remote.startRemoteObject(reference, UID, this, env);
 			remoteObjs.put(reference, remote);
 		} catch (Exception e) {
 			throw new RemoteException(e);
@@ -388,4 +417,28 @@ public class Broker {
 	public Map<String, RemoteObject> getRemoteObjs() {
 		return remoteObjs;
 	}
+
+	/*
+	 * Supervisor
+	 */
+	public void allowRemoteAllocation(String brokerSet, String brokerName) throws Exception {
+		// Create a RemoteBrokerImpl
+		bind(brokerSet, brokerName, new RemoteBrokerImpl());
+
+		// TODO if statistics map exists?
+		statisticsMap = new HashMap<String, StatisticsThread>();
+		// All remoteobjects will be monitored from now on
+		for (RemoteObject rO : remoteObjs.values()) {
+			StatisticsThread stats = new StatisticsThread();
+			statisticsMap.put(rO.getRef(), stats);
+			stats.start();
+		}
+
+		logger.info("Remote Allocation allowed. BrokerSet: " + brokerSet + " BrokerName: " + brokerName);
+	}
+
+	public StatisticsThread getStatisticsThread(String reference) {
+		return statisticsMap.get(reference);
+	}
+
 }

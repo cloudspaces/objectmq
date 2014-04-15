@@ -3,6 +3,7 @@ package omq.supervisor.broker;
 import java.util.Properties;
 import java.util.Set;
 
+import omq.common.broker.Measurement;
 import omq.exception.RetryException;
 import omq.server.RemoteObject;
 import omq.supervisor.util.HasObject;
@@ -74,10 +75,15 @@ public class RemoteBrokerImpl extends RemoteObject implements RemoteBroker {
 	@Override
 	public HasObject hasObjectInfo(String reference) throws RetryException {
 		System.out.println("Hola soc un broker" + getRef() + ", " + getUID() + ", fil: " + Thread.currentThread().getId());
+		Measurement m = null;
 		if (getBroker().getRemoteObjs().containsKey(reference)) {
-			return new HasObject(this.getUID(), reference, true);
+			// Now with measurements!!!
+			if (getBroker().getStatisticsThread(reference) != null) {
+				m = getBroker().getStatisticsThread(reference).getMeasurement();
+			}
+			return new HasObject(this.getUID(), reference, true, m);
 		}
-		return new HasObject(this.getUID(), reference, false);
+		return new HasObject(this.getUID(), reference, false, m);
 	}
 
 }

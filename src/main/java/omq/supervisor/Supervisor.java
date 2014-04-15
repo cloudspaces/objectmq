@@ -36,16 +36,15 @@ public class Supervisor {
 		this.omqSettings = omqSettings;
 	}
 
-	public void startSupervisor(Broker broker, String filename, double avgServiceTime, double varServiceTime, double avgMeanTime, double tLow, double tHigh)
-			throws RemoteException, IOException {
+	public void startSupervisor(Broker broker, String filename, double tLow, double tHigh) throws RemoteException, IOException {
 		remoteBroker = broker.lookup(brokerSet, RemoteBroker.class);
 
 		// create & start Provisioners
-		predProvisioner = new PredictiveProvisioner(objReference, filename, this, avgServiceTime, varServiceTime, avgMeanTime);
+		predProvisioner = new PredictiveProvisioner(objReference, filename, this);
 		predProvisioner.setStartAt(START_AT);
 		predProvisioner.setWindowSize(WINDOW_PRED);
 
-		reacProvisioner = new ReactiveProvisioner(objReference, filename, this, avgServiceTime, varServiceTime, avgMeanTime, tLow, tHigh);
+		reacProvisioner = new ReactiveProvisioner(objReference, filename, this, tLow, tHigh);
 		reacProvisioner.setStartAt(START_AT);
 		reacProvisioner.setWindowSize(WINDOW_REAC);
 
@@ -73,6 +72,10 @@ public class Supervisor {
 		}
 
 		return list;
+	}
+
+	public HasObject[] getHasList() throws RetryException {
+		return remoteBroker.hasObjectInfo(objReference);
 	}
 
 	public int getNumServersWithObject() {

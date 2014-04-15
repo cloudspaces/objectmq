@@ -10,6 +10,8 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 
+import omq.common.broker.Measurement;
+import omq.exception.RetryException;
 import omq.supervisor.Supervisor;
 
 import com.google.gson.JsonObject;
@@ -22,29 +24,78 @@ public class Provisioner extends Thread {
 	protected boolean killed = false;
 
 	protected String filename, objReference;
-	protected double avgServiceTime, varServiceTime, avgMeanTime;
 	protected long sleep;
 	protected double startAt, windowSize;
 	protected Supervisor supervisor;
 
-	public Provisioner(String objReference, String filename, Supervisor supervisor, double avgServiceTime, double varServiceTime, double avgMeanTime)
-			throws IOException {
+	public Provisioner(String objReference, String filename, Supervisor supervisor) throws IOException {
 		this.filename = filename;
 		this.objReference = objReference;
 		this.supervisor = supervisor;
-		this.avgServiceTime = avgServiceTime;
-		this.varServiceTime = varServiceTime;
-		this.avgMeanTime = avgMeanTime;
 
 		// Get day information
 		day = readFile(filename);
 	}
 
-	protected int getNumServersNeeded(double obs, double pred) throws IOException {
+	public HasObject[] getHasList() {
+		try {
+			return supervisor.getHasList();
+		} catch (RetryException e) {
+			return null;
+		}
+	}
+
+	public void action(double obs, double pred) {
+		try {
+			HasObject[] hasList = getHasList();
+			int numServersNeeded;
+
+			numServersNeeded = getNumServersNeeded(obs, pred, hasList);
+
+			// Ask how many servers are
+			int numServersNow = supervisor.getNumServersWithObject();
+
+			int diff = numServersNeeded - numServersNow;
+
+			if (diff > 0) {
+				// Create as servers as needed
+				supervisor.createObjects(diff);
+			}
+			if (diff < 0) {
+				// Remove as servers as said
+				supervisor.removeObjects(diff);
+			}
+		} catch (Exception e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}
+	}
+
+	protected int getNumServersNeeded(double obs, double pred, HasObject[] hasList) throws IOException {
+		double avgServiceTime = 0, varServiceTime = 0, varInterArrivalTime = 0;
 		pred = pred < obs ? obs : pred;
 
-		double varInterArrivalTime = getVarInterArrivalTime(day, startAt, windowSize);
-		double reqArrivalRate = 1 / (avgServiceTime + (varInterArrivalTime + varServiceTime) / (2 * (avgMeanTime - avgServiceTime)));
+		// Calculate avgServiceTime, varServiceTime, varInterArrivalTime
+		int i = 0;
+		for (HasObject h : hasList) {
+			Measurement m = h.getMeasurement();
+			if (h.hasObject() && m != null) {
+				avgServiceTime += m.getAvgServiceTime();
+				varServiceTime += m.getVarServiceTime();
+				varInterArrivalTime += m.getVarInterArrivalTime();
+				i++;
+			}
+		}
+
+		// Calculate mean times among servers
+		avgServiceTime /= i;
+		varServiceTime /= i;
+		varInterArrivalTime /= i;
+
+		// reqArrivalRate = 1 / (avgServiceTime + (varInterArrivalTime +
+		// varServiceTime) / (2 * (avgMeanTime - avgServiceTime)))
+
+		double reqArrivalRate = 1 / (avgServiceTime + (varInterArrivalTime + varServiceTime) / (2 * avgServiceTime));
 
 		return (int) Math.ceil(pred / reqArrivalRate);
 	}
@@ -181,30 +232,6 @@ public class Provisioner extends Thread {
 
 	public void setReference(String reference) {
 		this.filename = reference;
-	}
-
-	public double getAvgServiceTime() {
-		return avgServiceTime;
-	}
-
-	public void setAvgServiceTime(double avgServiceTime) {
-		this.avgServiceTime = avgServiceTime;
-	}
-
-	public double getVarServiceTime() {
-		return varServiceTime;
-	}
-
-	public void setVarServiceTime(double varServiceTime) {
-		this.varServiceTime = varServiceTime;
-	}
-
-	public double getAvgMeanTime() {
-		return avgMeanTime;
-	}
-
-	public void setAvgMeanTime(double avgMeanTime) {
-		this.avgMeanTime = avgMeanTime;
 	}
 
 	public long getSleep() {
