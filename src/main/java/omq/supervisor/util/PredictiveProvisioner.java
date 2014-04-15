@@ -2,6 +2,8 @@ package omq.supervisor.util;
 
 import java.io.IOException;
 
+import omq.supervisor.Supervisor;
+
 /**
  * 
  * @author Sergi Toda <sergi.toda@estudiants.urv.cat>
@@ -9,15 +11,16 @@ import java.io.IOException;
  */
 public class PredictiveProvisioner extends Provisioner {
 
-	public PredictiveProvisioner(String reference, double avgServiceTime, double varServiceTime, double avgMeanTime) throws IOException {
-		super(reference, avgServiceTime, varServiceTime, avgMeanTime);
+	public PredictiveProvisioner(String objReference, String filename, Supervisor supervisor, double avgServiceTime, double varServiceTime, double avgMeanTime)
+			throws IOException {
+		super(objReference, filename, supervisor, avgServiceTime, varServiceTime, avgMeanTime);
 	}
 
 	@Override
 	public void run() {
 		while (!killed) {
 			try {
-				double obs = getStatus("%2f", reference);
+				double obs = getStatus("%2f", objReference);
 
 				// DO ACTION
 				double pred = getPredArrivalRate(day, startAt, windowSize);
@@ -30,9 +33,21 @@ public class PredictiveProvisioner extends Provisioner {
 
 				if (diff > 0) {
 					// Create as servers as needed
+					try {
+						supervisor.createObjects(diff);
+					} catch (Exception e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
 				}
 				if (diff < 0) {
 					// Remove as servers as said
+					try {
+						supervisor.removeObjects(diff);
+					} catch (Exception e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
 				}
 
 				Thread.sleep(sleep);

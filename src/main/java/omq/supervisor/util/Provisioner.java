@@ -10,26 +10,34 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 
+import omq.supervisor.Supervisor;
+
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
 public class Provisioner extends Thread {
+	// TODO the avgServiceTime, varServiceTime, avgMeanTime and
+	// varInterArrivalTime should be measured online...
 	protected List<Double> day;
 	protected boolean killed = false;
 
-	protected String reference;
+	protected String filename, objReference;
 	protected double avgServiceTime, varServiceTime, avgMeanTime;
 	protected long sleep;
 	protected double startAt, windowSize;
+	protected Supervisor supervisor;
 
-	public Provisioner(String reference, double avgServiceTime, double varServiceTime, double avgMeanTime) throws IOException {
-		this.reference = reference;
+	public Provisioner(String objReference, String filename, Supervisor supervisor, double avgServiceTime, double varServiceTime, double avgMeanTime)
+			throws IOException {
+		this.filename = filename;
+		this.objReference = objReference;
+		this.supervisor = supervisor;
 		this.avgServiceTime = avgServiceTime;
 		this.varServiceTime = varServiceTime;
 		this.avgMeanTime = avgMeanTime;
 
 		// Get day information
-		day = readFile(reference);
+		day = readFile(filename);
 	}
 
 	protected int getNumServersNeeded(double obs, double pred) throws IOException {
@@ -159,12 +167,20 @@ public class Provisioner extends Thread {
 
 	}
 
+	public String getObjReference() {
+		return objReference;
+	}
+
+	public void setObjReference(String objReference) {
+		this.objReference = objReference;
+	}
+
 	public String getReference() {
-		return reference;
+		return filename;
 	}
 
 	public void setReference(String reference) {
-		this.reference = reference;
+		this.filename = reference;
 	}
 
 	public double getAvgServiceTime() {

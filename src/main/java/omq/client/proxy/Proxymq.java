@@ -3,7 +3,9 @@ package omq.client.proxy;
 import java.lang.reflect.Array;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
@@ -43,7 +45,8 @@ public class Proxymq implements InvocationHandler, Remote {
 	private static final Logger logger = Logger.getLogger(Proxymq.class.getName());
 	private static final String multi = "multi#";
 
-	private String uid;
+	private String reference;
+	private String UID;
 	private transient String exchange;
 	private transient String multiExchange;
 	private transient String replyQueueName;
@@ -69,11 +72,12 @@ public class Proxymq implements InvocationHandler, Remote {
 	/**
 	 * Proxymq Constructor.
 	 * 
-	 * This constructor uses an uid to know which object will call. It also uses
-	 * Properties to set where to send the messages
+	 * This constructor uses an reference to know which object will call. It
+	 * also uses Properties to set where to send the messages
 	 * 
-	 * @param uid
-	 *            The uid represents the unique identifier of a remote object
+	 * @param reference
+	 *            The reference represents the unique identifier of a remote
+	 *            object
 	 * @param clazz
 	 *            It represents the real class of the remote object. With this
 	 *            class the system can know the remoteInterface used and it can
@@ -82,8 +86,8 @@ public class Proxymq implements InvocationHandler, Remote {
 	 *            The environment is used to know where to send the messages
 	 * @throws Exception
 	 */
-	public Proxymq(String uid, Class<?> clazz, Broker broker) throws Exception {
-		this.uid = uid;
+	public Proxymq(String reference, Class<?> clazz, Broker broker) throws Exception {
+		this.reference = reference;
 		this.broker = broker;
 		rListener = broker.getResponseListener();
 		serializer = broker.getSerializer();
@@ -92,7 +96,7 @@ public class Proxymq implements InvocationHandler, Remote {
 		// this.channel = Broker.getChannel();
 		env = broker.getEnvironment();
 		exchange = env.getProperty(ParameterQueue.RPC_EXCHANGE, "");
-		multiExchange = multi + uid;
+		multiExchange = multi + reference;
 		replyQueueName = env.getProperty(ParameterQueue.RPC_REPLY_QUEUE);
 
 		// set the serializer type
@@ -115,6 +119,20 @@ public class Proxymq implements InvocationHandler, Remote {
 		if (method.getDeclaringClass().equals(Remote.class)) {
 			if (methodName.equals("getRef")) {
 				return getRef();
+			}
+			if (methodName.equals("getUID")) {
+				return getUID();
+			}
+			if (methodName.equals("setUID")) {
+				setUID((String) arguments[0]);
+				return null;
+			}
+			if (methodName.equals("equals")) {
+				if (arguments[0] instanceof Remote) {
+					return getRef().equals(((Remote) arguments[0]).getRef());
+				} else {
+					return false;
+				}
 			}
 		}
 
@@ -155,19 +173,22 @@ public class Proxymq implements InvocationHandler, Remote {
 			routingkey = "";
 		} else {
 			exchange = this.exchange;
-			routingkey = uid;
+			routingkey = reference;
 		}
 
+		// TODO look this carefully
+		String appId = UID == null ? reference : UID;
+
 		// Add the correlation ID and create a replyTo property
-		BasicProperties props = new BasicProperties.Builder().appId(uid).correlationId(corrId).replyTo(replyQueueName).type(serializerType)
-				.deliveryMode(deliveryMode).build();
+		BasicProperties props = new BasicProperties.Builder().appId(appId).correlationId(corrId).replyTo(replyQueueName)
+				.type(serializerType).deliveryMode(deliveryMode).build();
 
 		// Publish the message
 		byte[] bytesRequest = serializer.serialize(serializerType, request);
 		broker.publishMessge(exchange, routingkey, props, bytesRequest);
-		logger.debug("Proxymq: " + uid + " invokes '" + request.getMethod() + "' , corrID: " + corrId + ", exchange: " + exchange + ", replyQueue: "
-				+ replyQueueName + ", serializerType: " + serializerType + ", multi call: " + request.isMulti() + ", async call: " + request.isAsync()
-				+ ", delivery mode: " + deliveryMode);
+		logger.debug("Proxymq: " + reference + " invokes '" + request.getMethod() + "' , corrID: " + corrId + ", exchange: " + exchange
+				+ ", replyQueue: " + replyQueueName + ", serializerType: " + serializerType + ", multi call: " + request.isMulti()
+				+ ", async call: " + request.isAsync() + ", delivery mode: " + deliveryMode);
 	}
 
 	/**
@@ -193,7 +214,7 @@ public class Proxymq implements InvocationHandler, Remote {
 			try {
 				publishMessage(request, replyQueueName);
 				if (request.isMulti()) {
-					return getResults(corrId, request.getWait(), timeout, type);
+					return getResults(corrId, timeout, type);
 				} else {
 					return getResult(corrId, timeout, type);
 				}
@@ -220,11 +241,9 @@ public class Proxymq implements InvocationHandler, Remote {
 		String corrId = java.util.UUID.randomUUID().toString();
 		String methodName = method.getName();
 		boolean multi = false;
-		int wait = 0;
 
 		if (method.getAnnotation(MultiMethod.class) != null) {
 			multi = true;
-			wait = method.getAnnotation(MultiMethod.class).waitNum();
 		}
 
 		// Since we need to know whether the method is async and if it has to
@@ -238,7 +257,7 @@ public class Proxymq implements InvocationHandler, Remote {
 				retries = sync.retry();
 				timeout = sync.timeout();
 			}
-			return Request.newSyncRequest(corrId, methodName, arguments, retries, timeout, multi, wait);
+			return Request.newSyncRequest(corrId, methodName, arguments, retries, timeout, multi);
 		} else {
 			return Request.newAsyncRequest(corrId, methodName, arguments, multi);
 		}
@@ -248,7 +267,7 @@ public class Proxymq implements InvocationHandler, Remote {
 		Response resp = null;
 
 		// Wait for the results.
-		long localTimeout = timeout;
+		long localTimeout = 0;
 		long start = System.currentTimeMillis();
 		synchronized (results) {
 			// Due to we are using notifyAll(), we need to control the real time
@@ -283,8 +302,6 @@ public class Proxymq implements InvocationHandler, Remote {
 	 * 
 	 * @param corrId
 	 *            - Correlation Id of the request
-	 * @param wait
-	 *            - Array length
 	 * @param timeout
 	 *            - Timeout read in @SyncMethod.timeout(). If the timeout is set
 	 *            in 2 seconds, the system will wait 2 seconds for the arriving
@@ -294,18 +311,18 @@ public class Proxymq implements InvocationHandler, Remote {
 	 * @return resultArray
 	 * @throws Exception
 	 */
-	private Object getResults(String corrId, int wait, long timeout, Class<?> type) throws Exception {
+	private Object getResults(String corrId, long timeout, Class<?> type) throws Exception {
 		Response resp = null;
 		// Get the component type of an array
 		Class<?> actualType = type.getComponentType();
 
-		Object array = Array.newInstance(actualType, wait);
+		List<Object> list = new ArrayList<Object>();
 
 		int i = 0;
-		long localTimeout = timeout;
+		long localTimeout = 0;
 		long start = System.currentTimeMillis();
 
-		while (i < wait) {
+		while (true) {
 			synchronized (results) {
 				// Due to we are using notifyAll(), we need to control the real
 				// time
@@ -314,16 +331,28 @@ public class Proxymq implements InvocationHandler, Remote {
 					localTimeout = System.currentTimeMillis() - start;
 				}
 				if ((timeout - localTimeout) <= 0) {
-					throw new TimeoutException("Timeout exception time: " + timeout);
+					break;
 				}
 				// Remove the corrId to receive new replies
 				resp = serializer.deserializeResponse(results.remove(corrId), actualType);
-				Array.set(array, i, resp.getResult());
+				list.add(resp.getResult());
 			}
 			i++;
 		}
+
+		if (i == 0) {
+			results.remove(corrId);
+			throw new TimeoutException("Timeout exception time: " + timeout);
+		}
+
 		synchronized (results) {
 			results.put(corrId, null);
+		}
+
+		Object array = Array.newInstance(actualType, i);
+		i = 0;
+		for (Object o : list) {
+			Array.set(array, i++, o);
 		}
 
 		return array;
@@ -341,7 +370,17 @@ public class Proxymq implements InvocationHandler, Remote {
 
 	@Override
 	public String getRef() {
-		return uid;
+		return reference;
+	}
+
+	@Override
+	public String getUID() {
+		return UID;
+	}
+
+	@Override
+	public void setUID(String uID) {
+		this.UID = uID;
 	}
 
 }

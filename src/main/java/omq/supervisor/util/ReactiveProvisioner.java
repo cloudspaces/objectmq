@@ -2,13 +2,15 @@ package omq.supervisor.util;
 
 import java.io.IOException;
 
+import omq.supervisor.Supervisor;
+
 public class ReactiveProvisioner extends Provisioner {
 
 	private double tLow, tHigh;
 
-	public ReactiveProvisioner(String reference, double avgServiceTime, double varServiceTime, double avgMeanTime, double tLow, double tHigh)
-			throws IOException {
-		super(reference, avgServiceTime, varServiceTime, avgMeanTime);
+	public ReactiveProvisioner(String objReference, String filename, Supervisor supervisor, double avgServiceTime, double varServiceTime, double avgMeanTime,
+			double tLow, double tHigh) throws IOException {
+		super(objReference, filename, supervisor, avgServiceTime, varServiceTime, avgMeanTime);
 		this.tLow = tLow;
 		this.tHigh = tHigh;
 	}
@@ -17,7 +19,7 @@ public class ReactiveProvisioner extends Provisioner {
 	public void run() {
 		while (!killed) {
 			try {
-				double obs = getStatus("%2f", reference);
+				double obs = getStatus("%2f", objReference);
 				double pred = getPredArrivalRate(day, startAt, windowSize);
 
 				double ratio = pred / obs;
@@ -32,9 +34,21 @@ public class ReactiveProvisioner extends Provisioner {
 
 					if (diff > 0) {
 						// Create as servers as needed
+						try {
+							supervisor.createObjects(diff);
+						} catch (Exception e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						}
 					}
 					if (diff < 0) {
 						// Remove as servers as said
+						try {
+							supervisor.removeObjects(diff);
+						} catch (Exception e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						}
 					}
 
 					Thread.sleep(sleep);
