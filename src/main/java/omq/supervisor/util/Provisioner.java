@@ -69,6 +69,7 @@ public class Provisioner extends Thread {
 			}
 			// At least 1 server should survive
 			if (diff < 0 && numServersNeeded > 0) {
+				diff *= -1;
 				// Remove as servers as said
 				supervisor.removeObjects(diff, serversWithObject);
 			}
