@@ -5,6 +5,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.Properties;
 
 import omq.common.broker.Broker;
+import omq.common.broker.StatisticsThread;
 import omq.common.message.Request;
 import omq.common.message.Response;
 import omq.common.util.ParameterQueue;
@@ -61,7 +62,16 @@ public abstract class AInvocationThread extends Thread {
 				// Get the delivery
 				Delivery delivery = consumer.nextDelivery();
 
+				long arrival = System.currentTimeMillis();
+
 				executeTask(delivery);
+
+				long end = System.currentTimeMillis();
+
+				StatisticsThread thread = null;
+				if ((thread = broker.getStatisticsThread(reference)) != null) {
+					thread.setInfo(arrival, end - arrival);
+				}
 
 			} catch (InterruptedException i) {
 				logger.error(i);

@@ -54,18 +54,23 @@ public class Provisioner extends Thread {
 
 			numServersNeeded = getNumServersNeeded(obs, pred, hasList);
 
+			List<HasObject> serversWithObject = whoHasObject(hasList, true);
+
 			// Ask how many servers are
-			int numServersNow = supervisor.getNumServersWithObject();
+			int numServersNow = serversWithObject.size();
 
 			int diff = numServersNeeded - numServersNow;
 
 			if (diff > 0) {
+				// Calculate servers without object
+				List<HasObject> serversWithoutObject = whoHasObject(hasList, false);
 				// Create as servers as needed
-				supervisor.createObjects(diff);
+				supervisor.createObjects(diff, serversWithoutObject);
 			}
-			if (diff < 0) {
+			// At least 1 server should survive
+			if (diff < 0 && numServersNeeded > 0) {
 				// Remove as servers as said
-				supervisor.removeObjects(diff);
+				supervisor.removeObjects(diff, serversWithObject);
 			}
 		} catch (Exception e1) {
 			logger.error("Object: " + objReference, e1);
@@ -109,7 +114,7 @@ public class Provisioner extends Thread {
 		// reqArrivalRate = 1 / (avgServiceTime + (varInterArrivalTime +
 		// varServiceTime) / (2 * (avgMeanTime - avgServiceTime)))
 
-		double reqArrivalRate = 1 / (avgServiceTime + (varInterArrivalTime + varServiceTime) / (2 * avgServiceTime));
+		double reqArrivalRate = 1 / (avgServiceTime + ((varInterArrivalTime + varServiceTime) / (2 * avgServiceTime)));
 
 		return (int) Math.ceil(pred / reqArrivalRate);
 	}
@@ -199,6 +204,17 @@ public class Provisioner extends Thread {
 
 	}
 
+	public List<HasObject> whoHasObject(HasObject[] hasList, boolean condition) throws RetryException {
+		List<HasObject> list = new ArrayList<HasObject>();
+		for (HasObject h : hasList) {
+			if (h.hasObject() == condition) {
+				list.add(h);
+			}
+		}
+
+		return list;
+	}
+
 	protected int getStatus(String vhost, String queue) throws IOException {
 		URL url = new URL("http://localhost:15672/api/queues/" + vhost + "/" + queue);
 		HttpURLConnection connection = (HttpURLConnection) url.openConnection();
@@ -230,6 +246,14 @@ public class Provisioner extends Thread {
 			return 0;
 		}
 
+	}
+
+	public List<Double> getDay() {
+		return day;
+	}
+
+	public void setDay(List<Double> day) {
+		this.day = day;
 	}
 
 	public String getObjReference() {

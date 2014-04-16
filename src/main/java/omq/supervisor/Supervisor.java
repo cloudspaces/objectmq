@@ -1,7 +1,6 @@
 package omq.supervisor;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 
 import omq.common.broker.Broker;
@@ -53,48 +52,17 @@ public class Supervisor {
 		reacProvisioner.start();
 	}
 
-	/**
-	 * 
-	 * @param reference
-	 *            -
-	 * @param condition
-	 *            - If true means whoHas, if not whoDoesnt
-	 * @return
-	 * @throws RetryException
-	 */
-	public synchronized List<HasObject> whoHasObject(boolean condition) throws RetryException {
-		HasObject[] hasList = remoteBroker.hasObjectInfo(objReference);
-		List<HasObject> list = new ArrayList<HasObject>();
-		for (HasObject h : hasList) {
-			if (h.hasObject() == condition) {
-				list.add(h);
-			}
-		}
-
-		return list;
-	}
-
 	public HasObject[] getHasList() throws RetryException {
 		return remoteBroker.hasObjectInfo(objReference);
 	}
 
-	public int getNumServersWithObject() {
-		try {
-			return whoHasObject(true).size();
-		} catch (RetryException e) {
-			return 0;
-		}
-	}
-
 	// TODO create an specific exception when it's impossible to create a new
 	// object
-	public synchronized void createObjects(int numRequired) throws Exception {
-		// Who doesn't have an object should create an object
-		List<HasObject> list = whoHasObject(false);
+	public synchronized void createObjects(int numRequired, List<HasObject> serversWithoutObject) throws Exception {
 
 		int i = 0;
-		while (i < list.size() && i < numRequired) {
-			String brokerName = list.get(i).getBrokerName();
+		while (i < serversWithoutObject.size() && i < numRequired) {
+			String brokerName = serversWithoutObject.get(i).getBrokerName();
 			// Use a single broker
 			remoteBroker.setUID(brokerName);
 
@@ -117,13 +85,11 @@ public class Supervisor {
 
 	// TODO create an specific exception when it's impossible to remove a new
 	// object
-	public synchronized void removeObjects(int numToDelete) throws Exception {
-		// Who has an object should remove
-		List<HasObject> list = whoHasObject(false);
+	public synchronized void removeObjects(int numToDelete, List<HasObject> serversWithObject) throws Exception {
 
 		int i = 0;
-		while (i < list.size() && i < numToDelete) {
-			String brokerName = list.get(i).getBrokerName();
+		while (i < serversWithObject.size() && i < numToDelete) {
+			String brokerName = serversWithObject.get(i).getBrokerName();
 			// Use a single broker
 			remoteBroker.setUID(brokerName);
 

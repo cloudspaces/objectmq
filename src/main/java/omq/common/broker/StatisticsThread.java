@@ -11,8 +11,6 @@ public class StatisticsThread extends Thread {
 	private String reference;
 
 	private Object lock = new Object();
-	private Object lockArrival = new Object();
-	private Object lockService = new Object();
 
 	private long sleep = 15 * 60 * 1000; // 15 minutes
 	private boolean killed = false;
@@ -26,6 +24,8 @@ public class StatisticsThread extends Thread {
 
 	public StatisticsThread(String reference) {
 		this.reference = reference;
+		serviceList = new ArrayList<Long>();
+		arrivalList = new ArrayList<Long>();
 	}
 
 	@Override
@@ -33,18 +33,14 @@ public class StatisticsThread extends Thread {
 		while (!killed) {
 			try {
 				sleep(sleep);
-				// TODO check this please... Now u r hungry and u need a nap and
-				// a coffee :'(
-				// This happens when u don't have enough caffeine in your blood
 				synchronized (lock) {
-					synchronized (lockService) {
-						calculateServiceTime();
-						serviceList = new ArrayList<Long>();
-					}
-					synchronized (lockArrival) {
-						calculateInterArrivalRate();
-						arrivalList = new ArrayList<Long>();
-					}
+
+					calculateServiceTime();
+					serviceList = new ArrayList<Long>();
+
+					calculateInterArrivalRate();
+					arrivalList = new ArrayList<Long>();
+
 					logger.info("Object: " + reference + " statistics = {avgServiceTime : " + avgServiceTime + ", varInterArrivalTime : " + varInterArrivalTime
 							+ " , varServiceTime : " + varServiceTime);
 				}
@@ -73,63 +69,65 @@ public class StatisticsThread extends Thread {
 		}
 	}
 
-	public void addArrival(long arrival) {
-		synchronized (lockArrival) {
+	public void setInfo(long arrival, long serviceTime) {
+		synchronized (lock) {
 			arrivalList.add(arrival);
-		}
-	}
-
-	public void addServiceTime(long serviceTime) {
-		synchronized (lockService) {
 			serviceList.add(serviceTime);
 		}
 	}
 
-	private void calculateInterArrivalRate() {
+	public void calculateInterArrivalRate() {
+		if (arrivalList.size() > 0) {
+			List<Long> interList = new ArrayList<Long>();
 
-		List<Long> interList = new ArrayList<Long>();
+			int i = 0;
+			while (i + 2 < arrivalList.size()) {
+				interList.add(arrivalList.get(i + 1) - arrivalList.get(i));
+				i += 2;
+			}
 
-		int i = 0;
-		while (i + 2 < arrivalList.size()) {
-			interList.add(arrivalList.get(i + 1) - arrivalList.get(i));
-			i += 2;
+			double mean = 0;
+			double sum = 0;
+
+			for (double xi : interList) {
+				sum += xi;
+			}
+
+			mean = sum / interList.size();
+			sum = 0;
+
+			for (double xi : interList) {
+				sum += (xi - mean) * (xi - mean);
+			}
+
+			varInterArrivalTime = sum / (interList.size() - 1);
+		} else {
+			varInterArrivalTime = 0;
 		}
-
-		double mean = 0;
-		double sum = 0;
-
-		for (double xi : interList) {
-			sum += xi;
-		}
-
-		mean = sum / interList.size();
-		sum = 0;
-
-		for (double xi : interList) {
-			sum += (xi - mean) * (xi - mean);
-		}
-
-		varInterArrivalTime = sum / (interList.size() - 1);
 	}
 
-	private void calculateServiceTime() {
+	public void calculateServiceTime() {
+		if (serviceList.size() > 0) {
+			double mean = 0;
+			double sum = 0;
 
-		double mean = 0;
-		double sum = 0;
+			for (double xi : serviceList) {
+				sum += xi;
+			}
 
-		for (double xi : serviceList) {
-			sum += xi;
+			mean = sum / serviceList.size();
+			sum = 0;
+
+			for (double xi : serviceList) {
+				sum += (xi - mean) * (xi - mean);
+			}
+
+			avgServiceTime = mean;
+			varServiceTime = sum / (serviceList.size() - 1);
+		} else {
+			avgServiceTime = 0;
+			varServiceTime = 0;
 		}
-
-		mean = sum / serviceList.size();
-		sum = 0;
-
-		for (double xi : serviceList) {
-			sum += (xi - mean) * (xi - mean);
-		}
-
-		avgServiceTime = mean;
-		varServiceTime = sum / (serviceList.size() - 1);
 	}
 
 	public Measurement getMeasurement() {

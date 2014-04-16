@@ -287,6 +287,7 @@ public class Broker {
 		try {
 			remote.startRemoteObject(reference, UID, this, env);
 			remoteObjs.put(reference, remote);
+			logger.info("Object " + reference + "bound");
 		} catch (Exception e) {
 			throw new RemoteException(e);
 		}
@@ -307,6 +308,8 @@ public class Broker {
 		if (remoteObjs.containsKey(reference)) {
 			RemoteObject remote = remoteObjs.get(reference);
 			remote.kill();
+			remoteObjs.remove(reference);
+			logger.info("Object " + reference + " unbound");
 		} else {
 			throw new RemoteException("The object referenced by 'reference' does not exist in the Broker");
 		}

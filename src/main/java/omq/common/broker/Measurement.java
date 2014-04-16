@@ -42,4 +42,14 @@ public class Measurement implements Serializable {
 		this.varServiceTime = varServiceTime;
 	}
 
+	@Override
+	public boolean equals(Object obj) {
+		if (obj instanceof Measurement) {
+			Measurement m = (Measurement) obj;
+			return (avgServiceTime == m.getAvgServiceTime()) && (varInterArrivalTime == m.getVarInterArrivalTime())
+					&& (varServiceTime == m.getVarServiceTime());
+		}
+		return false;
+	}
+
 }
