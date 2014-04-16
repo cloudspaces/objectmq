@@ -21,7 +21,7 @@ public class ReactiveProvisioner extends Provisioner {
 				double obs = getStatus("%2f", objReference);
 				double pred = getPredArrivalRate(day, startAt, windowSize);
 
-				double ratio = pred / obs;
+				double ratio = obs / pred;
 
 				if (ratio < tLow || ratio > tHigh) {
 					action(obs, pred);

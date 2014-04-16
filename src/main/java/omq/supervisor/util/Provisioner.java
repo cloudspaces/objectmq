@@ -14,12 +14,14 @@ import omq.common.broker.Measurement;
 import omq.exception.RetryException;
 import omq.supervisor.Supervisor;
 
+import org.apache.log4j.Logger;
+
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
 public class Provisioner extends Thread {
-	// TODO the avgServiceTime, varServiceTime, avgMeanTime and
-	// varInterArrivalTime should be measured online...
+	private static final Logger logger = Logger.getLogger(Provisioner.class.getName());
+
 	protected List<Double> day;
 	protected boolean killed = false;
 
@@ -66,12 +68,18 @@ public class Provisioner extends Thread {
 				supervisor.removeObjects(diff);
 			}
 		} catch (Exception e1) {
+			logger.error("Object: " + objReference, e1);
 			// TODO Auto-generated catch block
 			e1.printStackTrace();
 		}
 	}
 
-	protected int getNumServersNeeded(double obs, double pred, HasObject[] hasList) throws IOException {
+	protected int getNumServersNeeded(double obs, double pred, HasObject[] hasList) throws Exception {
+		// There are no servers available
+		if (hasList.length == 0) {
+			throw new Exception("Cannot find any server available");
+		}
+
 		double avgServiceTime = 0, varServiceTime = 0, varInterArrivalTime = 0;
 		pred = pred < obs ? obs : pred;
 
@@ -85,6 +93,12 @@ public class Provisioner extends Thread {
 				varInterArrivalTime += m.getVarInterArrivalTime();
 				i++;
 			}
+		}
+
+		// There are no servers with the required object, at least 1 server is
+		// needed
+		if (i == 0) {
+			return 1;
 		}
 
 		// Calculate mean times among servers
