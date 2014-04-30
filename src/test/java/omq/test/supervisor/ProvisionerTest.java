@@ -83,7 +83,7 @@ public class ProvisionerTest {
 		serversWithoutObject.add(new HasObject("b1", objReference, false, null));
 		serversWithoutObject.add(new HasObject("b2", objReference, false, null));
 
-		supervisor.createObjects(numRequired, serversWithoutObject, 0, 0);
+		supervisor.createObjects(numRequired, serversWithoutObject);
 
 		Thread.sleep(5000);
 		assertTrue(b1.getRemoteObjs().containsKey(objReference));
@@ -97,7 +97,7 @@ public class ProvisionerTest {
 		serversWithObject.add(new HasObject("b1", objReference, true, null));
 		serversWithObject.add(new HasObject("b2", objReference, true, null));
 
-		supervisor.removeObjects(numToDelete, serversWithObject, 0, 0);
+		supervisor.removeObjects(numToDelete, serversWithObject);
 
 		Thread.sleep(5000);
 		assertFalse(b1.getRemoteObjs().containsKey(objReference));

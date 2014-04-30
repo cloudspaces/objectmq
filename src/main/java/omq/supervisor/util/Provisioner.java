@@ -8,10 +8,8 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 
-import omq.common.broker.Measurement;
 import omq.exception.RetryException;
 import omq.supervisor.Supervisor;
 
@@ -20,10 +18,10 @@ import org.apache.log4j.Logger;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
-public class Provisioner extends Thread {
-	private static final double prune = 1000; // 1000 ms - 1 second
-	private static final double responseTime = 800; // 800 ms 0,8 seconds
-	private static final Logger logger = Logger.getLogger(Provisioner.class.getName());
+public abstract class Provisioner extends Thread {
+	protected static final double prune = 500; // ms
+	protected static final double responseTime = 80; // ms
+	protected static final Logger logger = Logger.getLogger(Provisioner.class.getName());
 
 	protected List<Double> day;
 	protected boolean killed = false;
@@ -33,7 +31,7 @@ public class Provisioner extends Thread {
 	protected double startAt, windowSize;
 	protected Supervisor supervisor;
 
-	private double avgServiceTime = 0, varServiceTime = 0, varInterArrivalTime = 0, reqArrivalRate = 0;
+	protected double avgServiceTime = 0, varServiceTime = 0, varInterArrivalTime = 0, reqArrivalRate = 0;
 
 	public Provisioner(String objReference, String filename, Supervisor supervisor) throws IOException {
 		this.filename = filename;
@@ -52,93 +50,9 @@ public class Provisioner extends Thread {
 		}
 	}
 
-	public void action(double obs, double pred, String type) {
-		try {
-			HasObject[] hasList = getHasList();
-			int numServersNeeded;
+	public abstract void action(double a, double b);
 
-			numServersNeeded = getNumServersNeeded(obs, pred, hasList);
-
-			List<HasObject> serversWithObject = whoHasObject(hasList, true);
-
-			// Ask how many servers are
-			int numServersNow = serversWithObject.size();
-
-			int diff = numServersNeeded - numServersNow;
-
-			logger.info("Obs param: " + obs + ", Pred param: " + pred + ", NumServersNeeded: " + numServersNeeded + " NumSerNow: " + numServersNow);
-			FileWriterProvisioner.write(new Date(), type, obs, pred, reqArrivalRate, avgServiceTime, varServiceTime, varInterArrivalTime, numServersNeeded,
-					numServersNow);
-			if (diff > 0) {
-				// Calculate servers without object
-				List<HasObject> serversWithoutObject = whoHasObject(hasList, false);
-				// Create as servers as needed
-				supervisor.createObjects(diff, serversWithoutObject, obs, pred);
-			}
-			// At least 1 server should survive
-			if (diff < 0 && numServersNeeded > 0) {
-				diff *= -1;
-				// Remove as servers as said
-				supervisor.removeObjects(diff, serversWithObject, obs, pred);
-			}
-		} catch (Exception e1) {
-			logger.error("Object: " + objReference, e1);
-			// TODO Auto-generated catch block
-			e1.printStackTrace();
-		}
-	}
-
-	protected int getNumServersNeeded(double obs, double pred, HasObject[] hasList) throws Exception {
-		// There are no servers available
-		if (hasList.length == 0) {
-			throw new Exception("Cannot find any server available");
-		}
-
-		double avgServiceTime = 0, varServiceTime = 0, varInterArrivalTime = 0;
-		pred = pred < obs ? obs : pred;
-
-		// Calculate avgServiceTime, varServiceTime, varInterArrivalTime
-		int i = 0;
-		for (HasObject h : hasList) {
-			Measurement m = h.getMeasurement();
-			if (h.hasObject() && m != null) {
-				avgServiceTime += m.getAvgServiceTime();
-				varServiceTime += m.getVarServiceTime();
-				varInterArrivalTime += m.getVarInterArrivalTime();
-				i++;
-			}
-		}
-
-		// There are no servers with the required object, at least 1 server is
-		// needed
-		if (i == 0) {
-			return 1;
-		}
-
-		// Calculate mean times among servers
-		avgServiceTime /= i;
-		varServiceTime /= i;
-		varInterArrivalTime /= i;
-
-		this.avgServiceTime = avgServiceTime;
-		this.varServiceTime = varServiceTime;
-		this.varInterArrivalTime = varInterArrivalTime;
-
-		// reqArrivalRate = 1 / (avgServiceTime + (varInterArrivalTime +
-		// varServiceTime) / (2 * (avgMeanTime - avgServiceTime)))
-
-		double reqArrivalRate = 1 / (avgServiceTime + ((varInterArrivalTime + varServiceTime) / (2 * (responseTime * avgServiceTime))));
-
-		// reqArrival rate is measured in miliseconds but provisioners work with
-		// minutes
-		reqArrivalRate *= sleep * 1000;
-
-		logger.info("ReqArrivalRate: " + reqArrivalRate + " ,AvgServiceTime: " + avgServiceTime + ", VarServiceTime: " + varServiceTime + ", VarInterATime: "
-				+ varInterArrivalTime);
-
-		this.reqArrivalRate = reqArrivalRate;
-		return (int) Math.ceil(pred / reqArrivalRate);
-	}
+	
 
 	public List<Double> readFile(String fileName) throws IOException {
 

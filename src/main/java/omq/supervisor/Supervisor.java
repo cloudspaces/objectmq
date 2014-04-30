@@ -12,7 +12,6 @@ import java.util.List;
 import omq.common.broker.Broker;
 import omq.exception.RemoteException;
 import omq.exception.RetryException;
-import omq.supervisor.util.FileWriterSuper;
 import omq.supervisor.util.HasObject;
 import omq.supervisor.util.PredictiveProvisioner;
 import omq.supervisor.util.ReactiveProvisioner;
@@ -68,7 +67,7 @@ public class Supervisor {
 				HasObject[] hasList = getHasList();
 				List<HasObject> list = new ArrayList<HasObject>();
 				list.add(hasList[0]);
-				createObjects(1, list, 0, 0);
+				createObjects(1, list);
 				// wait some seconds until the object is created and the manager
 				// plugin knows new changes
 				Thread.sleep(5000);
@@ -89,7 +88,7 @@ public class Supervisor {
 
 	// TODO create an specific exception when it's impossible to create a new
 	// object
-	public synchronized void createObjects(int numRequired, List<HasObject> serversWithoutObject, double obs, double pred) throws Exception {
+	public synchronized void createObjects(int numRequired, List<HasObject> serversWithoutObject) throws Exception {
 
 		int i = 0;
 		while (i < serversWithoutObject.size() && i < numRequired) {
@@ -111,12 +110,11 @@ public class Supervisor {
 			i++;
 		}
 		logger.info("Num objects " + objReference + " created = " + i + ", num objects needed = " + numRequired);
-		FileWriterSuper.write(System.currentTimeMillis(), (int) obs, (int) pred, "CREATE", i);
 	}
 
 	// TODO create an specific exception when it's impossible to remove a new
 	// object
-	public synchronized void removeObjects(int numToDelete, List<HasObject> serversWithObject, double obs, double pred) throws Exception {
+	public synchronized void removeObjects(int numToDelete, List<HasObject> serversWithObject) throws Exception {
 
 		int i = 0;
 		while (i < serversWithObject.size() && i < numToDelete) {
@@ -135,7 +133,6 @@ public class Supervisor {
 			i++;
 		}
 		logger.info("Num objects " + objReference + " deleted = " + i + ", num objects needed to delete = " + numToDelete);
-		FileWriterSuper.write(System.currentTimeMillis(), (int) obs, (int) pred, "REMOVE", i);
 	}
 
 	public String getBrokerSet() {
