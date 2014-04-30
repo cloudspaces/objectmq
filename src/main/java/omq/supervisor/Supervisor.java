@@ -1,16 +1,26 @@
 package omq.supervisor;
 
+import java.io.BufferedReader;
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.util.ArrayList;
 import java.util.List;
 
 import omq.common.broker.Broker;
 import omq.exception.RemoteException;
 import omq.exception.RetryException;
+import omq.supervisor.util.FileWriterSuper;
 import omq.supervisor.util.HasObject;
 import omq.supervisor.util.PredictiveProvisioner;
 import omq.supervisor.util.ReactiveProvisioner;
 
 import org.apache.log4j.Logger;
+
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 
 public class Supervisor {
 
@@ -19,7 +29,7 @@ public class Supervisor {
 	 */
 	private static final Logger logger = Logger.getLogger(Supervisor.class.getName());
 	private static final long START_AT = 0;
-	private static final long WINDOW_PRED = 3600; // 1 hour
+	private static final long WINDOW_PRED = 900; // 15 minutes
 	private static final long WINDOW_REAC = 300; // 5 minutes
 
 	private String brokerSet;
@@ -42,10 +52,31 @@ public class Supervisor {
 		predProvisioner = new PredictiveProvisioner(objReference, filename, this);
 		predProvisioner.setStartAt(START_AT);
 		predProvisioner.setWindowSize(WINDOW_PRED);
+		predProvisioner.setSleep(WINDOW_PRED * 1000);
 
 		reacProvisioner = new ReactiveProvisioner(objReference, filename, this, tLow, tHigh);
 		reacProvisioner.setStartAt(START_AT);
 		reacProvisioner.setWindowSize(WINDOW_REAC);
+		reacProvisioner.setSleep(WINDOW_REAC * 1000);
+
+		// check if the file exists
+		try {
+			getStatus("%2f", objReference);
+		} catch (FileNotFoundException e) {
+			// Create a new remoteObject
+			try {
+				HasObject[] hasList = getHasList();
+				List<HasObject> list = new ArrayList<HasObject>();
+				list.add(hasList[0]);
+				createObjects(1, list, 0, 0);
+				// wait some seconds until the object is created and the manager
+				// plugin knows new changes
+				Thread.sleep(5000);
+			} catch (Exception e1) {
+				System.exit(1);
+			}
+
+		}
 
 		// start both thread
 		predProvisioner.start();
@@ -58,7 +89,7 @@ public class Supervisor {
 
 	// TODO create an specific exception when it's impossible to create a new
 	// object
-	public synchronized void createObjects(int numRequired, List<HasObject> serversWithoutObject) throws Exception {
+	public synchronized void createObjects(int numRequired, List<HasObject> serversWithoutObject, double obs, double pred) throws Exception {
 
 		int i = 0;
 		while (i < serversWithoutObject.size() && i < numRequired) {
@@ -80,12 +111,12 @@ public class Supervisor {
 			i++;
 		}
 		logger.info("Num objects " + objReference + " created = " + i + ", num objects needed = " + numRequired);
-
+		FileWriterSuper.write(System.currentTimeMillis(), (int) obs, (int) pred, "CREATE", i);
 	}
 
 	// TODO create an specific exception when it's impossible to remove a new
 	// object
-	public synchronized void removeObjects(int numToDelete, List<HasObject> serversWithObject) throws Exception {
+	public synchronized void removeObjects(int numToDelete, List<HasObject> serversWithObject, double obs, double pred) throws Exception {
 
 		int i = 0;
 		while (i < serversWithObject.size() && i < numToDelete) {
@@ -104,7 +135,7 @@ public class Supervisor {
 			i++;
 		}
 		logger.info("Num objects " + objReference + " deleted = " + i + ", num objects needed to delete = " + numToDelete);
-
+		FileWriterSuper.write(System.currentTimeMillis(), (int) obs, (int) pred, "REMOVE", i);
 	}
 
 	public String getBrokerSet() {
@@ -155,4 +186,36 @@ public class Supervisor {
 		this.reacProvisioner = reacProvisioner;
 	}
 
+	private int getStatus(String vhost, String queue) throws IOException {
+		URL url = new URL("http://localhost:15672/api/queues/" + vhost + "/" + queue);
+		HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+
+		connection.setRequestMethod("GET");
+
+		String userpass = "guest" + ":" + "guest";
+		String basicAuth = "Basic " + javax.xml.bind.DatatypeConverter.printBase64Binary(userpass.getBytes());
+
+		connection.setRequestProperty("Authorization", basicAuth);
+
+		connection.connect();
+
+		int status = connection.getResponseCode();
+		System.out.println(status);
+
+		BufferedReader buff = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+		String json = "", line;
+		while ((line = buff.readLine()) != null) {
+			json += line + "\n";
+		}
+		buff.close();
+
+		JsonParser parser = new JsonParser();
+		JsonObject jsonObj = parser.parse(json).getAsJsonObject();
+		try {
+			return jsonObj.get("message_stats").getAsJsonObject().get("deliver_get").getAsInt();
+		} catch (NullPointerException e) {
+			return 0;
+		}
+
+	}
 }

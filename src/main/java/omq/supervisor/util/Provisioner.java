@@ -8,6 +8,7 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 import omq.common.broker.Measurement;
@@ -20,6 +21,8 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
 public class Provisioner extends Thread {
+	private static final double prune = 1000; // 1000 ms - 1 second
+	private static final double responseTime = 800; // 800 ms 0,8 seconds
 	private static final Logger logger = Logger.getLogger(Provisioner.class.getName());
 
 	protected List<Double> day;
@@ -29,6 +32,8 @@ public class Provisioner extends Thread {
 	protected long sleep;
 	protected double startAt, windowSize;
 	protected Supervisor supervisor;
+
+	private double avgServiceTime = 0, varServiceTime = 0, varInterArrivalTime = 0, reqArrivalRate = 0;
 
 	public Provisioner(String objReference, String filename, Supervisor supervisor) throws IOException {
 		this.filename = filename;
@@ -47,7 +52,7 @@ public class Provisioner extends Thread {
 		}
 	}
 
-	public void action(double obs, double pred) {
+	public void action(double obs, double pred, String type) {
 		try {
 			HasObject[] hasList = getHasList();
 			int numServersNeeded;
@@ -61,17 +66,20 @@ public class Provisioner extends Thread {
 
 			int diff = numServersNeeded - numServersNow;
 
+			logger.info("Obs param: " + obs + ", Pred param: " + pred + ", NumServersNeeded: " + numServersNeeded + " NumSerNow: " + numServersNow);
+			FileWriterProvisioner.write(new Date(), type, obs, pred, reqArrivalRate, avgServiceTime, varServiceTime, varInterArrivalTime, numServersNeeded,
+					numServersNow);
 			if (diff > 0) {
 				// Calculate servers without object
 				List<HasObject> serversWithoutObject = whoHasObject(hasList, false);
 				// Create as servers as needed
-				supervisor.createObjects(diff, serversWithoutObject);
+				supervisor.createObjects(diff, serversWithoutObject, obs, pred);
 			}
 			// At least 1 server should survive
 			if (diff < 0 && numServersNeeded > 0) {
 				diff *= -1;
 				// Remove as servers as said
-				supervisor.removeObjects(diff, serversWithObject);
+				supervisor.removeObjects(diff, serversWithObject, obs, pred);
 			}
 		} catch (Exception e1) {
 			logger.error("Object: " + objReference, e1);
@@ -112,11 +120,23 @@ public class Provisioner extends Thread {
 		varServiceTime /= i;
 		varInterArrivalTime /= i;
 
+		this.avgServiceTime = avgServiceTime;
+		this.varServiceTime = varServiceTime;
+		this.varInterArrivalTime = varInterArrivalTime;
+
 		// reqArrivalRate = 1 / (avgServiceTime + (varInterArrivalTime +
 		// varServiceTime) / (2 * (avgMeanTime - avgServiceTime)))
 
-		double reqArrivalRate = 1 / (avgServiceTime + ((varInterArrivalTime + varServiceTime) / (2 * avgServiceTime)));
+		double reqArrivalRate = 1 / (avgServiceTime + ((varInterArrivalTime + varServiceTime) / (2 * (responseTime * avgServiceTime))));
 
+		// reqArrival rate is measured in miliseconds but provisioners work with
+		// minutes
+		reqArrivalRate *= sleep * 1000;
+
+		logger.info("ReqArrivalRate: " + reqArrivalRate + " ,AvgServiceTime: " + avgServiceTime + ", VarServiceTime: " + varServiceTime + ", VarInterATime: "
+				+ varInterArrivalTime);
+
+		this.reqArrivalRate = reqArrivalRate;
 		return (int) Math.ceil(pred / reqArrivalRate);
 	}
 
@@ -187,6 +207,14 @@ public class Provisioner extends Thread {
 	}
 
 	protected double getVariance(List<Double> list) {
+		List<Double> laux = new ArrayList<Double>();
+		for (double xi : list) {
+			if (xi < prune) {
+				laux.add(xi);
+			}
+		}
+		list = laux;
+
 		double mean = 0;
 		double sum = 0;
 
@@ -231,20 +259,24 @@ public class Provisioner extends Thread {
 
 		int status = connection.getResponseCode();
 		System.out.println(status);
+		if (200 >= status && status < 300) {
 
-		BufferedReader buff = new BufferedReader(new InputStreamReader(connection.getInputStream()));
-		String json = "", line;
-		while ((line = buff.readLine()) != null) {
-			json += line + "\n";
-		}
-		buff.close();
+			BufferedReader buff = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+			String json = "", line;
+			while ((line = buff.readLine()) != null) {
+				json += line + "\n";
+			}
+			buff.close();
 
-		JsonParser parser = new JsonParser();
-		JsonObject jsonObj = parser.parse(json).getAsJsonObject();
-		try {
-			return jsonObj.get("message_stats").getAsJsonObject().get("deliver_get").getAsInt();
-		} catch (NullPointerException e) {
-			return 0;
+			JsonParser parser = new JsonParser();
+			JsonObject jsonObj = parser.parse(json).getAsJsonObject();
+			try {
+				return jsonObj.get("message_stats").getAsJsonObject().get("deliver_get").getAsInt();
+			} catch (NullPointerException e) {
+				return 0;
+			}
+		} else {
+			throw new IOException("Queue does not exist");
 		}
 
 	}

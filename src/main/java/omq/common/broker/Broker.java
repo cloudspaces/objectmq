@@ -270,7 +270,7 @@ public class Broker {
 			// If this broker is monitored, then add a new thread -theres no
 			// need to check whether the statistic thread exists or not
 			if (statisticsMap != null) {
-				StatisticsThread stats = new StatisticsThread(reference);
+				StatisticsThread stats = new StatisticsThread(remote);
 				statisticsMap.put(reference, stats);
 				stats.start();
 			}
@@ -432,7 +432,7 @@ public class Broker {
 		statisticsMap = new HashMap<String, StatisticsThread>();
 		// All remoteobjects will be monitored from now on
 		for (RemoteObject rO : remoteObjs.values()) {
-			StatisticsThread stats = new StatisticsThread(rO.getRef());
+			StatisticsThread stats = new StatisticsThread(rO);
 			statisticsMap.put(rO.getRef(), stats);
 			stats.start();
 		}

@@ -5,7 +5,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.Properties;
 
 import omq.common.broker.Broker;
-import omq.common.broker.StatisticsThread;
+import omq.common.broker.StatisticList;
 import omq.common.message.Request;
 import omq.common.message.Response;
 import omq.common.util.ParameterQueue;
@@ -19,8 +19,8 @@ import com.rabbitmq.client.AMQP.BasicProperties;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.ConsumerCancelledException;
 import com.rabbitmq.client.QueueingConsumer;
-import com.rabbitmq.client.ShutdownSignalException;
 import com.rabbitmq.client.QueueingConsumer.Delivery;
+import com.rabbitmq.client.ShutdownSignalException;
 
 /**
  * 
@@ -46,6 +46,9 @@ public abstract class AInvocationThread extends Thread {
 	protected QueueingConsumer consumer;
 	protected boolean killed = false;
 
+	// Statistics
+	private StatisticList statsLists;
+
 	public AInvocationThread(RemoteObject obj) throws Exception {
 		this.obj = obj;
 		this.UID = obj.getUID();
@@ -53,6 +56,8 @@ public abstract class AInvocationThread extends Thread {
 		this.env = obj.getEnv();
 		this.broker = obj.getBroker();
 		this.serializer = broker.getSerializer();
+
+		this.statsLists = new StatisticList();
 	}
 
 	@Override
@@ -68,9 +73,9 @@ public abstract class AInvocationThread extends Thread {
 
 				long end = System.currentTimeMillis();
 
-				StatisticsThread thread = null;
-				if ((thread = broker.getStatisticsThread(reference)) != null) {
-					thread.setInfo(arrival, end - arrival);
+				System.out.println("Soc el THREAD " + reference + " " + broker.getStatisticsThread(reference));
+				if (broker.getStatisticsThread(reference) != null) {
+					statsLists.setInfo(arrival, end - arrival);
 				}
 
 			} catch (InterruptedException i) {
@@ -177,5 +182,12 @@ public abstract class AInvocationThread extends Thread {
 
 	public void setObj(RemoteObject obj) {
 		this.obj = obj;
+	}
+
+	public StatisticList getAndRemoveStatsLists() {
+		StatisticList aux = statsLists;
+		System.out.println("SOC EL THREAD " + reference + ",  " + statsLists.getArrivalList() + ", " + statsLists.getServiceList());
+		statsLists = new StatisticList();
+		return aux;
 	}
 }

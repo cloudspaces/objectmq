@@ -1,7 +1,11 @@
 package omq.common.broker;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+
+import omq.server.AInvocationThread;
+import omq.server.RemoteObject;
 
 import org.apache.log4j.Logger;
 
@@ -14,6 +18,7 @@ public class StatisticsThread extends Thread {
 
 	private long sleep = 15 * 60 * 1000; // 15 minutes
 	private boolean killed = false;
+	private RemoteObject remoteObj;
 
 	private double avgServiceTime;
 	private double varInterArrivalTime;
@@ -22,8 +27,9 @@ public class StatisticsThread extends Thread {
 	private List<Long> arrivalList;
 	private List<Long> serviceList;
 
-	public StatisticsThread(String reference) {
-		this.reference = reference;
+	public StatisticsThread(RemoteObject remoteObj) {
+		this.remoteObj = remoteObj;
+		reference = remoteObj.getRef();
 		serviceList = new ArrayList<Long>();
 		arrivalList = new ArrayList<Long>();
 	}
@@ -33,6 +39,7 @@ public class StatisticsThread extends Thread {
 		while (!killed) {
 			try {
 				sleep(sleep);
+				askData();
 				synchronized (lock) {
 
 					calculateServiceTime();
@@ -51,39 +58,30 @@ public class StatisticsThread extends Thread {
 		}
 	}
 
-	public double getAvgServiceTime() {
-		synchronized (lock) {
-			return avgServiceTime;
-		}
-	}
-
-	public double getVarInterArrivalTime() {
-		synchronized (lock) {
-			return varInterArrivalTime;
-		}
-	}
-
-	public double getVarServiceTime() {
-		synchronized (lock) {
-			return varServiceTime;
-		}
-	}
-
-	public void setInfo(long arrival, long serviceTime) {
-		synchronized (lock) {
-			arrivalList.add(arrival);
-			serviceList.add(serviceTime);
+	public void askData() {
+		for (AInvocationThread thread : remoteObj.getPool().getWorkers()) {
+			StatisticList aux = thread.getAndRemoveStatsLists();
+			serviceList.addAll(aux.getServiceList());
+			arrivalList.addAll(aux.getArrivalList());
 		}
 	}
 
 	public void calculateInterArrivalRate() {
-		if (arrivalList.size() > 0) {
+
+		if (arrivalList.size() > 2) {
 			List<Long> interList = new ArrayList<Long>();
 
-			int i = 0;
-			while (i + 2 < arrivalList.size()) {
-				interList.add(arrivalList.get(i + 1) - arrivalList.get(i));
-				i += 2;
+			Collections.sort(arrivalList);
+			System.out.println("calculateInterArrivalRate: " + arrivalList);
+
+			long prev = arrivalList.get(0);
+
+			int i = 1;
+			while (i < arrivalList.size()) {
+				long aux = arrivalList.get(i);
+				interList.add(aux - prev);
+				prev = aux;
+				i++;
 			}
 
 			double mean = 0;
@@ -108,6 +106,8 @@ public class StatisticsThread extends Thread {
 
 	public void calculateServiceTime() {
 		if (serviceList.size() > 0) {
+			System.out.println("calculateServiceTime: " + serviceList);
+
 			double mean = 0;
 			double sum = 0;
 
