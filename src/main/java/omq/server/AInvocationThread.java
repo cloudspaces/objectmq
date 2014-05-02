@@ -73,7 +73,6 @@ public abstract class AInvocationThread extends Thread {
 
 				long end = System.currentTimeMillis();
 
-				System.out.println("Soc el THREAD " + reference + " " + broker.getStatisticsThread(reference));
 				if (broker.getStatisticsThread(reference) != null) {
 					statsLists.setInfo(arrival, end - arrival);
 				}
@@ -186,7 +185,6 @@ public abstract class AInvocationThread extends Thread {
 
 	public StatisticList getAndRemoveStatsLists() {
 		StatisticList aux = statsLists;
-		System.out.println("SOC EL THREAD " + reference + ",  " + statsLists.getArrivalList() + ", " + statsLists.getServiceList());
 		statsLists = new StatisticList();
 		return aux;
 	}

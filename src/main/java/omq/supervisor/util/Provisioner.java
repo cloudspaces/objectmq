@@ -19,8 +19,8 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
 public abstract class Provisioner extends Thread {
-	protected static final double prune = 500; // ms
-	protected static final double responseTime = 80; // ms
+	protected static final double prune = 400; // ms
+	protected static final double responseTime = 300; // ms
 	protected static final Logger logger = Logger.getLogger(Provisioner.class.getName());
 
 	protected List<Double> day;
@@ -111,7 +111,7 @@ public abstract class Provisioner extends Thread {
 			i++;
 
 			while (i < list.size() && (aux2 = list.get(i)) < end) {
-				xi.add(aux2 - aux);
+				xi.add((aux2 - aux)*1000);
 				aux = aux2;
 				i++;
 			}

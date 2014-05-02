@@ -16,7 +16,7 @@ public class StatisticsThread extends Thread {
 
 	private Object lock = new Object();
 
-	private long sleep = 15 * 60 * 1000; // 15 minutes
+	private long sleep = (4 * 60 * 1000) + (30 * 1000); // 4,5 minutes
 	private boolean killed = false;
 	private RemoteObject remoteObj;
 
@@ -38,7 +38,7 @@ public class StatisticsThread extends Thread {
 	public void run() {
 		while (!killed) {
 			try {
-				sleep(sleep);
+				Thread.sleep(sleep);
 				askData();
 				synchronized (lock) {
 
@@ -132,6 +132,7 @@ public class StatisticsThread extends Thread {
 
 	public Measurement getMeasurement() {
 		synchronized (lock) {
+			System.out.println(avgServiceTime + " " + varInterArrivalTime + " " + varServiceTime);
 			return new Measurement(avgServiceTime, varInterArrivalTime, varServiceTime);
 		}
 	}

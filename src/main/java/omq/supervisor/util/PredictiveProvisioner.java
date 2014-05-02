@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.util.Date;
 import java.util.List;
 
-import omq.common.broker.Measurement;
 import omq.supervisor.Supervisor;
 
 /**
@@ -81,35 +80,15 @@ public class PredictiveProvisioner extends Provisioner {
 			throw new Exception("Cannot find any server available");
 		}
 
-		double avgServiceTime = 0, varServiceTime = 0;
+		// TODO change this!!!! use the historical avgServiceTime and
+		// varServiceTime -> change logs
+		double avgServiceTime = 23, varServiceTime = 20;
 
-		// Calculate avgServiceTime, varServiceTime
-		int i = 0;
-		for (HasObject h : hasList) {
-			Measurement m = h.getMeasurement();
-			if (h.hasObject() && m != null) {
-				avgServiceTime += m.getAvgServiceTime();
-				varServiceTime += m.getVarServiceTime();
-				varInterArrivalTime += m.getVarInterArrivalTime();
-				i++;
-			}
-		}
-
-		// There are no servers with the required object, at least 1 server is
-		// needed
-		if (i == 0) {
-			return 1;
-		}
-
-		// Calculate mean times among servers
-		avgServiceTime /= i;
-		varServiceTime /= i;
-
-		double reqArrivalRate = 1 / (avgServiceTime + ((varInterArrivalTime + varServiceTime) / (2 * (responseTime * avgServiceTime))));
+		double reqArrivalRate = 1 / (avgServiceTime + ((varInterArrivalTime + varServiceTime) / (2 * (responseTime - avgServiceTime))));
 
 		// reqArrival rate is measured in miliseconds but provisioners work with
 		// minutes
-		reqArrivalRate *= sleep * 1000;
+		reqArrivalRate *= sleep;
 
 		logger.info("ReqArrivalRate: " + reqArrivalRate + " ,AvgServiceTime: " + avgServiceTime + ", VarServiceTime: " + varServiceTime + ", VarInterATime: "
 				+ varInterArrivalTime);
@@ -117,5 +96,4 @@ public class PredictiveProvisioner extends Provisioner {
 		this.reqArrivalRate = reqArrivalRate;
 		return (int) Math.ceil(pred / reqArrivalRate);
 	}
-
 }

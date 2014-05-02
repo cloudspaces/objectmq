@@ -24,6 +24,9 @@ public class ReactiveProvisioner extends Provisioner {
 
 		while (!killed) {
 			try {
+				// GetStatus returns the number of messages queued along the
+				// time. For this reason, it's necessary to save the previous
+				// state
 				double status = getStatus("%2f", objReference);
 				double obs = status - prevStatus;
 				prevStatus = status;
@@ -89,7 +92,6 @@ public class ReactiveProvisioner extends Provisioner {
 		}
 
 		double avgServiceTime = 0, varServiceTime = 0, varInterArrivalTime = 0;
-		// pred = pred < obs ? obs : pred;
 
 		// Calculate avgServiceTime, varServiceTime, varInterArrivalTime
 		int i = 0;
@@ -118,14 +120,11 @@ public class ReactiveProvisioner extends Provisioner {
 		this.varServiceTime = varServiceTime;
 		this.varInterArrivalTime = varInterArrivalTime;
 
-		// reqArrivalRate = 1 / (avgServiceTime + (varInterArrivalTime +
-		// varServiceTime) / (2 * (avgMeanTime - avgServiceTime)))
-
-		double reqArrivalRate = 1 / (avgServiceTime + ((varInterArrivalTime + varServiceTime) / (2 * (responseTime * avgServiceTime))));
+		double reqArrivalRate = 1 / (avgServiceTime + ((varInterArrivalTime + varServiceTime) / (2 * (responseTime - avgServiceTime))));
 
 		// reqArrival rate is measured in miliseconds but provisioners work with
 		// minutes
-		reqArrivalRate *= sleep * 1000;
+		reqArrivalRate *= sleep;
 
 		logger.info("ReqArrivalRate: " + reqArrivalRate + " ,AvgServiceTime: " + avgServiceTime + ", VarServiceTime: " + varServiceTime + ", VarInterATime: "
 				+ varInterArrivalTime);

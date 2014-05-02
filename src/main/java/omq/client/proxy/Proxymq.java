@@ -173,22 +173,19 @@ public class Proxymq implements InvocationHandler, Remote {
 			routingkey = "";
 		} else {
 			exchange = this.exchange;
-			routingkey = reference;
+			routingkey = UID == null ? reference : UID;
 		}
 
-		// TODO look this carefully
-		String appId = UID == null ? reference : UID;
-
 		// Add the correlation ID and create a replyTo property
-		BasicProperties props = new BasicProperties.Builder().appId(appId).correlationId(corrId).replyTo(replyQueueName)
-				.type(serializerType).deliveryMode(deliveryMode).build();
+		BasicProperties props = new BasicProperties.Builder().appId(reference).correlationId(corrId).replyTo(replyQueueName).type(serializerType)
+				.deliveryMode(deliveryMode).build();
 
 		// Publish the message
 		byte[] bytesRequest = serializer.serialize(serializerType, request);
 		broker.publishMessge(exchange, routingkey, props, bytesRequest);
-		logger.debug("Proxymq: " + reference + " invokes '" + request.getMethod() + "' , corrID: " + corrId + ", exchange: " + exchange
-				+ ", replyQueue: " + replyQueueName + ", serializerType: " + serializerType + ", multi call: " + request.isMulti()
-				+ ", async call: " + request.isAsync() + ", delivery mode: " + deliveryMode);
+		logger.debug("Proxymq: " + reference + " invokes '" + request.getMethod() + "' , corrID: " + corrId + ", exchange: " + exchange + ", replyQueue: "
+				+ replyQueueName + ", serializerType: " + serializerType + ", multi call: " + request.isMulti() + ", async call: " + request.isAsync()
+				+ ", delivery mode: " + deliveryMode);
 	}
 
 	/**

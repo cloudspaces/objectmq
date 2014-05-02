@@ -74,7 +74,7 @@ public class RemoteBrokerImpl extends RemoteObject implements RemoteBroker {
 
 	@Override
 	public HasObject hasObjectInfo(String reference) throws RetryException {
-		System.out.println("Hola soc un broker" + getRef() + ", " + getUID() + ", fil: " + Thread.currentThread().getId());
+		System.out.println("hasObjectInfo Hola soc un broker" + getRef() + ", " + getUID() + ", fil: " + Thread.currentThread().getId());
 		Measurement m = null;
 		if (getBroker().getRemoteObjs().containsKey(reference)) {
 			// Now with measurements!!!
