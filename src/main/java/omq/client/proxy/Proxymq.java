@@ -141,6 +141,9 @@ public class Proxymq implements InvocationHandler, Remote {
 
 		Object response = null;
 		// Publish the request
+
+		System.out.println("REQUEST " + methodName + " REQUESTID" + request.getId());
+
 		if (request.isAsync()) {
 			publishMessage(request, replyQueueName);
 		} else {
@@ -264,15 +267,15 @@ public class Proxymq implements InvocationHandler, Remote {
 		Response resp = null;
 
 		// Wait for the results.
-		long localTimeout = 0;
-		long start = System.currentTimeMillis();
 		synchronized (results) {
 			// Due to we are using notifyAll(), we need to control the real time
-			while (!results.containsKey(corrId) && (timeout - localTimeout) >= 0) {
-				results.wait(localTimeout);
-				localTimeout = System.currentTimeMillis() - start;
+			while (!results.containsKey(corrId) && timeout > 0) {
+				long start = System.currentTimeMillis();
+				results.wait(timeout);
+				long end = System.currentTimeMillis();
+				timeout -= end - start;
 			}
-			if ((timeout - localTimeout) <= 0) {
+			if (timeout <= 0) {
 				throw new TimeoutException("Timeout exception time: " + timeout);
 			}
 			resp = serializer.deserializeResponse(results.get(corrId), type);
@@ -308,6 +311,7 @@ public class Proxymq implements InvocationHandler, Remote {
 	 * @return resultArray
 	 * @throws Exception
 	 */
+
 	private Object getResults(String corrId, long timeout, Class<?> type) throws Exception {
 		Response resp = null;
 		// Get the component type of an array
@@ -316,20 +320,25 @@ public class Proxymq implements InvocationHandler, Remote {
 		List<Object> list = new ArrayList<Object>();
 
 		int i = 0;
-		long localTimeout = 0;
-		long start = System.currentTimeMillis();
 
 		while (true) {
 			synchronized (results) {
 				// Due to we are using notifyAll(), we need to control the real
 				// time
-				while (!results.containsKey(corrId) && (timeout - localTimeout) >= 0) {
-					results.wait(localTimeout);
-					localTimeout = System.currentTimeMillis() - start;
+				while (!results.containsKey(corrId) && timeout > 0) {
+					System.out.println("ENTRO AQUI " + System.currentTimeMillis());
+					long start = System.currentTimeMillis();
+					results.wait(timeout);
+					long end = System.currentTimeMillis();
+
+					System.out.println("timeout = " + timeout + " end - start = " + (end - start) + " " + System.currentTimeMillis());
+
+					timeout -= end - start;
 				}
-				if ((timeout - localTimeout) <= 0) {
+				if (timeout <= 0) {
 					break;
 				}
+
 				// Remove the corrId to receive new replies
 				resp = serializer.deserializeResponse(results.remove(corrId), actualType);
 				list.add(resp.getResult());

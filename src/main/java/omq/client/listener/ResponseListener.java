@@ -76,10 +76,13 @@ public class ResponseListener extends Thread {
 
 				// Put the result into the proxy results and notify him
 				synchronized (proxyResults) {
+					System.out.println("Resultat: " + uid_request + " " + delivery.getBody() + +System.currentTimeMillis());
 					// If we haven't received this response before, we store it
 					if (!proxyResults.containsKey(uid_request)) {
 						proxyResults.put(uid_request, delivery.getBody());
 						proxyResults.notifyAll();
+					} else {
+						System.out.println("JA EXISTEIX");
 					}
 				}
 			} catch (InterruptedException i) {

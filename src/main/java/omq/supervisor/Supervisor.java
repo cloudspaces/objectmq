@@ -83,13 +83,14 @@ public class Supervisor {
 	}
 
 	public HasObject[] getHasList() throws RetryException {
+		System.out.println("getHasList " + System.currentTimeMillis());
 		return remoteBroker.hasObjectInfo(objReference);
 	}
 
 	// TODO create an specific exception when it's impossible to create a new
 	// object
 	public synchronized void createObjects(int numRequired, List<HasObject> serversWithoutObject) throws Exception {
-
+		System.out.println("CreateObjects " + System.currentTimeMillis());
 		int i = 0;
 		while (i < serversWithoutObject.size() && i < numRequired) {
 			String brokerName = serversWithoutObject.get(i).getBrokerName();
@@ -115,7 +116,7 @@ public class Supervisor {
 	// TODO create an specific exception when it's impossible to remove a new
 	// object
 	public synchronized void removeObjects(int numToDelete, List<HasObject> serversWithObject) throws Exception {
-
+		System.out.println("RemoveObjects " + System.currentTimeMillis());
 		int i = 0;
 		while (i < serversWithObject.size() && i < numToDelete) {
 			String brokerName = serversWithObject.get(i).getBrokerName();

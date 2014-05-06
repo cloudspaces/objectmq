@@ -28,7 +28,8 @@ public class PredictiveProvisioner extends Provisioner {
 
 				action(pred, varInterArrivalTime);
 
-				Thread.sleep(sleep);
+				// Thread.sleep(sleep);
+				Thread.sleep(0);
 				startAt += windowSize;
 			} catch (IOException e) {
 				e.printStackTrace();

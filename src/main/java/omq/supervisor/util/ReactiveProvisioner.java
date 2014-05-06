@@ -22,6 +22,14 @@ public class ReactiveProvisioner extends Provisioner {
 
 		double prevStatus = 0;
 
+		try {
+			// To check if our prediction was OK we need to compare predArr with
+			// obsArr
+			Thread.sleep(sleep);
+		} catch (InterruptedException e1) {
+			e1.printStackTrace();
+		}
+
 		while (!killed) {
 			try {
 				// GetStatus returns the number of messages queued along the
