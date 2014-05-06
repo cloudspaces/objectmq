@@ -15,6 +15,7 @@ import com.rabbitmq.client.QueueingConsumer;
 // ParameterQueue.NUM_THREADS_MULTI?
 public class MultiInvocationThread extends AInvocationThread {
 
+	public static final String TYPE = "multiResponse";
 	private static final Logger logger = Logger.getLogger(MultiInvocationThread.class.getName());
 	private static final String multi = "multi#";
 
@@ -65,6 +66,11 @@ public class MultiInvocationThread extends AInvocationThread {
 		// Declare a new consumer
 		consumer = new QueueingConsumer(channel);
 		channel.basicConsume(multiQueue, autoAck, consumer);
+	}
+
+	@Override
+	public String getType() {
+		return TYPE;
 	}
 
 }

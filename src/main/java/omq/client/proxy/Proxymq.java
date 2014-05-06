@@ -3,7 +3,6 @@ package omq.client.proxy;
 import java.lang.reflect.Array;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -13,7 +12,10 @@ import omq.Remote;
 import omq.client.annotation.AsyncMethod;
 import omq.client.annotation.MultiMethod;
 import omq.client.annotation.SyncMethod;
+import omq.client.listener.IResponseWrapper;
+import omq.client.listener.MultiResponseWrapper;
 import omq.client.listener.ResponseListener;
+import omq.client.listener.ResponseWrapper;
 import omq.common.broker.Broker;
 import omq.common.message.Request;
 import omq.common.message.Response;
@@ -56,7 +58,7 @@ public class Proxymq implements InvocationHandler, Remote {
 	private transient Serializer serializer;
 	private transient Properties env;
 	private transient Integer deliveryMode = null;
-	private transient Map<String, byte[]> results;
+	private transient Map<String, IResponseWrapper> results;
 
 	private static final Map<String, Class<?>> primitiveClasses = new HashMap<String, Class<?>>();
 	static {
@@ -106,7 +108,7 @@ public class Proxymq implements InvocationHandler, Remote {
 		}
 
 		// Create a new hashmap and registry it in rListener
-		results = new HashMap<String, byte[]>();
+		results = new HashMap<String, IResponseWrapper>();
 		rListener.registerProxy(this);
 	}
 
@@ -278,12 +280,15 @@ public class Proxymq implements InvocationHandler, Remote {
 			if (timeout <= 0) {
 				throw new TimeoutException("Timeout exception time: " + timeout);
 			}
-			resp = serializer.deserializeResponse(results.get(corrId), type);
+
+			ResponseWrapper wrap = (ResponseWrapper) results.get(corrId);
 
 			// Remove and indicate the key exists (a hashmap can contain a null
 			// object, using this we'll know whether a response has been
 			// received before)
 			results.put(corrId, null);
+
+			resp = serializer.deserializeResponse(wrap.getResult(), type);
 		}
 
 		if (resp.getError() != null) {
@@ -313,52 +318,28 @@ public class Proxymq implements InvocationHandler, Remote {
 	 */
 
 	private Object getResults(String corrId, long timeout, Class<?> type) throws Exception {
-		Response resp = null;
 		// Get the component type of an array
 		Class<?> actualType = type.getComponentType();
 
-		List<Object> list = new ArrayList<Object>();
+		Thread.sleep(timeout);
 
-		int i = 0;
-
-		while (true) {
-			synchronized (results) {
-				// Due to we are using notifyAll(), we need to control the real
-				// time
-				while (!results.containsKey(corrId) && timeout > 0) {
-					System.out.println("ENTRO AQUI " + System.currentTimeMillis());
-					long start = System.currentTimeMillis();
-					results.wait(timeout);
-					long end = System.currentTimeMillis();
-
-					System.out.println("timeout = " + timeout + " end - start = " + (end - start) + " " + System.currentTimeMillis());
-
-					timeout -= end - start;
-				}
-				if (timeout <= 0) {
-					break;
-				}
-
-				// Remove the corrId to receive new replies
-				resp = serializer.deserializeResponse(results.remove(corrId), actualType);
-				list.add(resp.getResult());
-			}
-			i++;
-		}
-
-		if (i == 0) {
-			results.remove(corrId);
+		if (!results.containsKey(corrId)) {
 			throw new TimeoutException("Timeout exception time: " + timeout);
 		}
 
-		synchronized (results) {
-			results.put(corrId, null);
-		}
+		MultiResponseWrapper wrap = (MultiResponseWrapper) results.get(corrId);
+		// Remove and indicate the key exists (a hashmap can contain a null
+		// object, using this we'll know whether a response has been
+		// received before)
+		results.put(corrId, null);
 
-		Object array = Array.newInstance(actualType, i);
-		i = 0;
-		for (Object o : list) {
-			Array.set(array, i++, o);
+		List<byte[]> responses = wrap.getResult();
+
+		Object array = Array.newInstance(actualType, responses.size());
+		int i = 0;
+		for (byte[] b : responses) {
+			Response resp = serializer.deserializeResponse(b, actualType);
+			Array.set(array, i++, resp.getResult());
 		}
 
 		return array;
@@ -370,7 +351,7 @@ public class Proxymq implements InvocationHandler, Remote {
 	 * @return a map with all the keys processed. Every key is a correlation id
 	 *         of a method invoked remotely
 	 */
-	public Map<String, byte[]> getResults() {
+	public Map<String, IResponseWrapper> getResults() {
 		return results;
 	}
 

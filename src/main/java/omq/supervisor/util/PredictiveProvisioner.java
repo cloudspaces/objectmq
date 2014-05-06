@@ -43,7 +43,7 @@ public class PredictiveProvisioner extends Provisioner {
 		try {
 			HasObject[] hasList = getHasList();
 			int numServersNeeded;
-
+System.out.println("length: "+ hasList.length);
 			numServersNeeded = getNumServersNeeded(pred, varInterArrivalTime, hasList);
 
 			List<HasObject> serversWithObject = whoHasObject(hasList, true);
