@@ -143,9 +143,6 @@ public class Proxymq implements InvocationHandler, Remote {
 
 		Object response = null;
 		// Publish the request
-
-		System.out.println("REQUEST " + methodName + " REQUESTID" + request.getId());
-
 		if (request.isAsync()) {
 			publishMessage(request, replyQueueName);
 		} else {

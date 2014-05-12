@@ -73,7 +73,7 @@ public abstract class AInvocationThread extends Thread {
 
 				long end = System.currentTimeMillis();
 
-				if (broker.getStatisticsThread(reference) != null) {
+				if (broker.getStatisticsMap() != null && broker.getStatisticsThread(reference) != null) {
 					statsLists.setInfo(arrival, end - arrival);
 				}
 

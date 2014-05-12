@@ -444,4 +444,7 @@ public class Broker {
 		return statisticsMap.get(reference);
 	}
 
+	public Map<String, StatisticsThread> getStatisticsMap(){
+		return statisticsMap;
+	}
 }

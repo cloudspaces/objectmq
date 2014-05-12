@@ -86,11 +86,9 @@ public class ResponseListener extends Thread {
 						wrap = new MultiResponseWrapper(delivery.getBody());
 						proxyResults.put(uid_request, wrap);
 					}
-					System.out.println("Resultat: " + uid_request + " " + delivery.getBody() + +System.currentTimeMillis());
 				} else {
 					// Put the result into the proxy results and notify him
 					synchronized (proxyResults) {
-						System.out.println("Resultat: " + uid_request + " " + delivery.getBody() + +System.currentTimeMillis());
 						// If we haven't received this response before, we store
 						// it
 						if (!proxyResults.containsKey(uid_request)) {

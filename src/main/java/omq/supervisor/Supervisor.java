@@ -18,6 +18,8 @@ import omq.supervisor.util.ReactiveProvisioner;
 
 import org.apache.log4j.Logger;
 
+import startExperiment.Start;
+
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
@@ -36,7 +38,8 @@ public class Supervisor {
 	private OmqSettings omqSettings;
 	private RemoteBroker remoteBroker;
 	private PredictiveProvisioner predProvisioner;
-	private ReactiveProvisioner reacProvisioner;
+
+	// private ReactiveProvisioner reacProvisioner;
 
 	public Supervisor(String brokerSet, String objReference, OmqSettings omqSettings) {
 		this.brokerSet = brokerSet;
@@ -53,10 +56,11 @@ public class Supervisor {
 		predProvisioner.setWindowSize(WINDOW_PRED);
 		predProvisioner.setSleep(WINDOW_PRED * 1000);
 
-		reacProvisioner = new ReactiveProvisioner(objReference, filename, this, tLow, tHigh);
-		reacProvisioner.setStartAt(START_AT);
-		reacProvisioner.setWindowSize(WINDOW_REAC);
-		reacProvisioner.setSleep(WINDOW_REAC * 1000);
+		// reacProvisioner = new ReactiveProvisioner(objReference, filename,
+		// this, tLow, tHigh);
+		// reacProvisioner.setStartAt(START_AT);
+		// reacProvisioner.setWindowSize(WINDOW_REAC);
+		// reacProvisioner.setSleep(WINDOW_REAC * 1000);
 
 		// check if the file exists
 		try {
@@ -77,13 +81,18 @@ public class Supervisor {
 
 		}
 
+		/*
+		 * START EXPERMIENT!!!! THIS IS BULLSHIT BUT I'LL START THE EXPERIMENT
+		 */
+		Start start = broker.lookup("start", Start.class);
+		start.startExperiment();
+
 		// start both thread
 		predProvisioner.start();
-		reacProvisioner.start();
+		// reacProvisioner.start();
 	}
 
 	public HasObject[] getHasList() throws RetryException {
-		System.out.println("getHasList " + System.currentTimeMillis());
 		return remoteBroker.hasObjectInfo(objReference);
 	}
 
@@ -116,7 +125,6 @@ public class Supervisor {
 	// TODO create an specific exception when it's impossible to remove a new
 	// object
 	public synchronized void removeObjects(int numToDelete, List<HasObject> serversWithObject) throws Exception {
-		System.out.println("RemoveObjects " + System.currentTimeMillis());
 		int i = 0;
 		while (i < serversWithObject.size() && i < numToDelete) {
 			String brokerName = serversWithObject.get(i).getBrokerName();
@@ -176,13 +184,13 @@ public class Supervisor {
 		this.predProvisioner = predProvisioner;
 	}
 
-	public ReactiveProvisioner getReacProvisioner() {
-		return reacProvisioner;
-	}
-
-	public void setReacProvisioner(ReactiveProvisioner reacProvisioner) {
-		this.reacProvisioner = reacProvisioner;
-	}
+	// public ReactiveProvisioner getReacProvisioner() {
+	// return reacProvisioner;
+	// }
+	//
+	// public void setReacProvisioner(ReactiveProvisioner reacProvisioner) {
+	// this.reacProvisioner = reacProvisioner;
+	// }
 
 	private int getStatus(String vhost, String queue) throws IOException {
 		URL url = new URL("http://localhost:15672/api/queues/" + vhost + "/" + queue);

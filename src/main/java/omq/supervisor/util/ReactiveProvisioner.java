@@ -22,16 +22,10 @@ public class ReactiveProvisioner extends Provisioner {
 
 		double prevStatus = 0;
 
-		try {
-			// To check if our prediction was OK we need to compare predArr with
-			// obsArr
-			Thread.sleep(sleep);
-		} catch (InterruptedException e1) {
-			e1.printStackTrace();
-		}
-
 		while (!killed) {
 			try {
+				Thread.sleep(sleep);
+
 				// GetStatus returns the number of messages queued along the
 				// time. For this reason, it's necessary to save the previous
 				// state
@@ -47,7 +41,6 @@ public class ReactiveProvisioner extends Provisioner {
 					action(obs, pred);
 				}
 
-				Thread.sleep(sleep);
 				startAt += windowSize;
 			} catch (IOException e) {
 				e.printStackTrace();

@@ -20,7 +20,7 @@ import com.google.gson.JsonParser;
 
 public abstract class Provisioner extends Thread {
 	protected static final double prune = 400; // ms
-	protected static final double responseTime = 300; // ms
+	protected static final double responseTime = 400; // ms
 	protected static final Logger logger = Logger.getLogger(Provisioner.class.getName());
 
 	protected List<Double> day;

@@ -28,8 +28,7 @@ public class PredictiveProvisioner extends Provisioner {
 
 				action(pred, varInterArrivalTime);
 
-				// Thread.sleep(sleep);
-				Thread.sleep(0);
+				Thread.sleep(sleep);
 				startAt += windowSize;
 			} catch (IOException e) {
 				e.printStackTrace();
@@ -43,7 +42,7 @@ public class PredictiveProvisioner extends Provisioner {
 		try {
 			HasObject[] hasList = getHasList();
 			int numServersNeeded;
-System.out.println("length: "+ hasList.length);
+
 			numServersNeeded = getNumServersNeeded(pred, varInterArrivalTime, hasList);
 
 			List<HasObject> serversWithObject = whoHasObject(hasList, true);
@@ -83,7 +82,7 @@ System.out.println("length: "+ hasList.length);
 
 		// TODO change this!!!! use the historical avgServiceTime and
 		// varServiceTime -> change logs
-		double avgServiceTime = 23, varServiceTime = 20;
+		double avgServiceTime = 50, varServiceTime = 200;
 
 		double reqArrivalRate = 1 / (avgServiceTime + ((varInterArrivalTime + varServiceTime) / (2 * (responseTime - avgServiceTime))));
 
