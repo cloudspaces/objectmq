@@ -23,11 +23,11 @@ public interface RemoteBroker extends Remote {
 	public void deleteObject(String reference) throws RemoteException, IOException;
 
 	@MultiMethod
-	@SyncMethod(retry = 1, timeout = 2000)
+	@SyncMethod(retry = 1, timeout = 1000)
 	public boolean[] hasObject(String reference) throws RetryException;
 
 	@MultiMethod
-	@SyncMethod(retry = 1, timeout = 2000)
+	@SyncMethod(retry = 1, timeout = 1000)
 	public HasObject[] hasObjectInfo(String reference) throws RetryException;
 
 }

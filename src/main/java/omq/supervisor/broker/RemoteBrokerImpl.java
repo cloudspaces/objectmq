@@ -30,7 +30,6 @@ public class RemoteBrokerImpl extends RemoteObject implements RemoteBroker {
 
 	@Override
 	public void spawnObject(String reference, String className, Properties env) throws Exception {
-		System.out.println("spawnObject " + System.currentTimeMillis());
 		logger.info("Broker " + this.getUID() + "will spawn " + reference);
 		try {
 			RemoteObject remote = (RemoteObject) Class.forName(className).newInstance();
@@ -44,7 +43,6 @@ public class RemoteBrokerImpl extends RemoteObject implements RemoteBroker {
 
 	@Override
 	public void spawnObject(String reference, String className) throws Exception {
-		System.out.println("spawnObject " + System.currentTimeMillis());
 		logger.info("Broker " + this.getUID() + "will spawn " + reference);
 		try {
 			RemoteObject remote = (RemoteObject) Class.forName(className).newInstance();
@@ -58,7 +56,6 @@ public class RemoteBrokerImpl extends RemoteObject implements RemoteBroker {
 
 	@Override
 	public void deleteObject(String reference) throws Exception {
-		System.out.println("deleteObject " + System.currentTimeMillis());
 		logger.info("Broker " + this.getUID() + "will delete " + reference);
 		try {
 			getBroker().unbind(reference);
@@ -76,8 +73,6 @@ public class RemoteBrokerImpl extends RemoteObject implements RemoteBroker {
 
 	@Override
 	public HasObject hasObjectInfo(String reference) throws RetryException {
-		System.out.println("hasObjectInfo Hola soc un broker" + getRef() + ", " + getUID() + ", fil: " + Thread.currentThread().getId() + " TimeMilis: "
-				+ System.currentTimeMillis());
 		Measurement m = null;
 		if (getBroker().getRemoteObjs().containsKey(reference)) {
 			// Now with measurements!!!

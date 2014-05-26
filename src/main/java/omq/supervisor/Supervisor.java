@@ -7,11 +7,14 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import omq.common.broker.Broker;
 import omq.exception.RemoteException;
 import omq.exception.RetryException;
+import omq.supervisor.util.FileWriterSuper;
 import omq.supervisor.util.HasObject;
 import omq.supervisor.util.PredictiveProvisioner;
 import omq.supervisor.util.ReactiveProvisioner;
@@ -23,7 +26,7 @@ import startExperiment.Start;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
-public class Supervisor {
+public class Supervisor extends Thread {
 
 	/**
 	 * 
@@ -38,8 +41,11 @@ public class Supervisor {
 	private OmqSettings omqSettings;
 	private RemoteBroker remoteBroker;
 	private PredictiveProvisioner predProvisioner;
+	private boolean killed = false;
 
-	// private ReactiveProvisioner reacProvisioner;
+	private AtomicInteger numServersNeed;
+
+	 private ReactiveProvisioner reacProvisioner;
 
 	public Supervisor(String brokerSet, String objReference, OmqSettings omqSettings) {
 		this.brokerSet = brokerSet;
@@ -51,16 +57,17 @@ public class Supervisor {
 		remoteBroker = broker.lookup(brokerSet, RemoteBroker.class);
 
 		// create & start Provisioners
-		predProvisioner = new PredictiveProvisioner(objReference, filename, this);
-		predProvisioner.setStartAt(START_AT);
-		predProvisioner.setWindowSize(WINDOW_PRED);
-		predProvisioner.setSleep(WINDOW_PRED * 1000);
+		 predProvisioner = new PredictiveProvisioner(objReference, filename,
+		 this);
+		 predProvisioner.setStartAt(START_AT);
+		 predProvisioner.setWindowSize(WINDOW_PRED);
+		 predProvisioner.setSleep(WINDOW_PRED * 1000);
 
-		// reacProvisioner = new ReactiveProvisioner(objReference, filename,
-		// this, tLow, tHigh);
-		// reacProvisioner.setStartAt(START_AT);
-		// reacProvisioner.setWindowSize(WINDOW_REAC);
-		// reacProvisioner.setSleep(WINDOW_REAC * 1000);
+		 reacProvisioner = new ReactiveProvisioner(objReference, filename,
+		 this, tLow, tHigh);
+		 reacProvisioner.setStartAt(START_AT);
+		 reacProvisioner.setWindowSize(WINDOW_REAC);
+		 reacProvisioner.setSleep(WINDOW_REAC * 1000);
 
 		// check if the file exists
 		try {
@@ -87,9 +94,57 @@ public class Supervisor {
 		Start start = broker.lookup("start", Start.class);
 		start.startExperiment();
 
+		numServersNeed = new AtomicInteger(1);
+
 		// start both thread
 		predProvisioner.start();
-		// reacProvisioner.start();
+		reacProvisioner.start();
+
+		this.start();
+	}
+
+	@Override
+	public void run() {
+
+		while (!killed) {
+			try {
+				HasObject[] hasList = getHasList();
+				int needed = numServersNeed.get();
+
+				List<HasObject> serversWithObject = whoHasObject(hasList, true);
+
+				// Ask how many servers are
+				int numServersNow = serversWithObject.size();
+
+				int diff = needed - numServersNow;
+				if (diff > 0) {
+					logger.info("Creating " + diff + " " + objReference);
+					FileWriterSuper.write(new Date(), "CREATE", diff);
+					// Calculate servers without object
+					List<HasObject> serversWithoutObject = whoHasObject(hasList, false);
+					// Create as servers as needed
+					createObjects(diff, serversWithoutObject);
+					Thread.sleep(5000);
+				}
+				// At least 1 server should survive
+				if (diff < 0 && needed > 0) {
+					diff *= -1;
+					logger.info("Removing " + diff + " " + objReference);
+					FileWriterSuper.write(new Date(), "REMOVE", diff);
+					// Remove as servers as said
+					removeObjects(diff, serversWithObject);
+					Thread.sleep(5000);
+				}
+			} catch (Exception e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+
+		}
+	}
+
+	public void setNumServersNeeded(int numNeeded) {
+		numServersNeed.set(numNeeded);
 	}
 
 	public HasObject[] getHasList() throws RetryException {
@@ -184,13 +239,24 @@ public class Supervisor {
 		this.predProvisioner = predProvisioner;
 	}
 
-	// public ReactiveProvisioner getReacProvisioner() {
-	// return reacProvisioner;
-	// }
-	//
-	// public void setReacProvisioner(ReactiveProvisioner reacProvisioner) {
-	// this.reacProvisioner = reacProvisioner;
-	// }
+	public List<HasObject> whoHasObject(HasObject[] hasList, boolean condition) throws RetryException {
+		List<HasObject> list = new ArrayList<HasObject>();
+		for (HasObject h : hasList) {
+			if (h.hasObject() == condition) {
+				list.add(h);
+			}
+		}
+
+		return list;
+	}
+
+	public ReactiveProvisioner getReacProvisioner() {
+		return reacProvisioner;
+	}
+
+	public void setReacProvisioner(ReactiveProvisioner reacProvisioner) {
+		this.reacProvisioner = reacProvisioner;
+	}
 
 	private int getStatus(String vhost, String queue) throws IOException {
 		URL url = new URL("http://localhost:15672/api/queues/" + vhost + "/" + queue);

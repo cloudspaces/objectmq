@@ -51,6 +51,7 @@ public class StatisticsThread extends Thread {
 					logger.info("Object: " + reference + " statistics = {avgServiceTime : " + avgServiceTime + ", varInterArrivalTime : " + varInterArrivalTime
 							+ " , varServiceTime : " + varServiceTime);
 				}
+				Thread.sleep(30 * 1000);
 			} catch (InterruptedException e) {
 				logger.error(e);
 				e.printStackTrace();
@@ -72,7 +73,6 @@ public class StatisticsThread extends Thread {
 			List<Long> interList = new ArrayList<Long>();
 
 			Collections.sort(arrivalList);
-			System.out.println("calculateInterArrivalRate: " + arrivalList);
 
 			long prev = arrivalList.get(0);
 
@@ -132,7 +132,6 @@ public class StatisticsThread extends Thread {
 
 	public Measurement getMeasurement() {
 		synchronized (lock) {
-			System.out.println(avgServiceTime + " " + varInterArrivalTime + " " + varServiceTime);
 			return new Measurement(avgServiceTime, varInterArrivalTime, varServiceTime);
 		}
 	}

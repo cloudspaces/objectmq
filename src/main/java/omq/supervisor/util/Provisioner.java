@@ -52,7 +52,9 @@ public abstract class Provisioner extends Thread {
 
 	public abstract void action(double a, double b);
 
-	
+	public void setNumServersNeeded(int numServersNeeded) {
+		supervisor.setNumServersNeeded(numServersNeeded);
+	}
 
 	public List<Double> readFile(String fileName) throws IOException {
 
@@ -111,7 +113,7 @@ public abstract class Provisioner extends Thread {
 			i++;
 
 			while (i < list.size() && (aux2 = list.get(i)) < end) {
-				xi.add((aux2 - aux)*1000);
+				xi.add((aux2 - aux) * 1000);
 				aux = aux2;
 				i++;
 			}

@@ -2,7 +2,6 @@ package omq.supervisor.util;
 
 import java.io.IOException;
 import java.util.Date;
-import java.util.List;
 
 import omq.supervisor.Supervisor;
 
@@ -40,33 +39,14 @@ public class PredictiveProvisioner extends Provisioner {
 
 	public void action(double pred, double varInterArrivalTime) {
 		try {
-			HasObject[] hasList = getHasList();
 			int numServersNeeded;
 
-			numServersNeeded = getNumServersNeeded(pred, varInterArrivalTime, hasList);
-
-			List<HasObject> serversWithObject = whoHasObject(hasList, true);
-
-			// Ask how many servers are
-			int numServersNow = serversWithObject.size();
-
-			int diff = numServersNeeded - numServersNow;
-
-			logger.info("Pred param: " + pred + ", NumServersNeeded: " + numServersNeeded + " NumSerNow: " + numServersNow);
+			numServersNeeded = getNumServersNeeded(pred, varInterArrivalTime, null);
+			logger.info("Pred param: " + pred + ", NumServersNeeded: " + numServersNeeded);
 			FileWriterProvisioner.write(new Date(), "Predictive", 0, pred, reqArrivalRate, avgServiceTime, varServiceTime, varInterArrivalTime,
-					numServersNeeded, numServersNow);
-			if (diff > 0) {
-				// Calculate servers without object
-				List<HasObject> serversWithoutObject = whoHasObject(hasList, false);
-				// Create as servers as needed
-				supervisor.createObjects(diff, serversWithoutObject);
-			}
-			// At least 1 server should survive
-			if (diff < 0 && numServersNeeded > 0) {
-				diff *= -1;
-				// Remove as servers as said
-				supervisor.removeObjects(diff, serversWithObject);
-			}
+					numServersNeeded, -1);
+
+			super.setNumServersNeeded(numServersNeeded);
 		} catch (Exception e1) {
 			logger.error("Object: " + objReference, e1);
 			// TODO Auto-generated catch block
@@ -76,9 +56,9 @@ public class PredictiveProvisioner extends Provisioner {
 
 	public int getNumServersNeeded(double pred, double varInterArrivalTime, HasObject[] hasList) throws Exception {
 		// There are no servers available
-		if (hasList.length == 0) {
-			throw new Exception("Cannot find any server available");
-		}
+		// if (hasList.length == 0) {
+		// throw new Exception("Cannot find any server available");
+		// }
 
 		// TODO change this!!!! use the historical avgServiceTime and
 		// varServiceTime -> change logs
