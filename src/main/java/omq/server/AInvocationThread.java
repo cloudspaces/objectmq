@@ -108,8 +108,6 @@ public abstract class AInvocationThread extends Thread {
 	 */
 	protected abstract void startQueues() throws Exception;
 
-	public abstract String getType();
-
 	protected void executeTask(Delivery delivery) throws Exception {
 		String serializerType = delivery.getProperties().getType();
 
@@ -140,7 +138,7 @@ public abstract class AInvocationThread extends Thread {
 
 			BasicProperties props = delivery.getProperties();
 
-			BasicProperties replyProps = new BasicProperties.Builder().appId(obj.getRef()).correlationId(props.getCorrelationId()).type(getType()).build();
+			BasicProperties replyProps = new BasicProperties.Builder().appId(obj.getRef()).correlationId(props.getCorrelationId()).type(getType(delivery)).build();
 
 			byte[] bytesResponse = serializer.serialize(serializerType, resp);
 			channel.basicPublish("", props.getReplyTo(), replyProps, bytesResponse);
@@ -151,6 +149,8 @@ public abstract class AInvocationThread extends Thread {
 		channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
 	}
 
+	protected abstract String getType(Delivery delivery);
+	
 	public void kill() throws IOException {
 		logger.info("Killing objectmq: " + reference + " thread id");
 		killed = true;

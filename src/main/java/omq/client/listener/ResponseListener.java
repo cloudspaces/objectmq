@@ -6,12 +6,11 @@ import java.util.Hashtable;
 import java.util.Map;
 import java.util.Properties;
 
-import org.apache.log4j.Logger;
-
 import omq.client.proxy.Proxymq;
 import omq.common.broker.Broker;
 import omq.common.util.ParameterQueue;
-import omq.server.MultiInvocationThread;
+
+import org.apache.log4j.Logger;
 
 import com.rabbitmq.client.AMQP.BasicProperties;
 import com.rabbitmq.client.Channel;
@@ -78,7 +77,7 @@ public class ResponseListener extends Thread {
 				Map<String, IResponseWrapper> proxyResults = results.get(props.getAppId());
 
 				// Check whether the response is multi or not
-				if (MultiInvocationThread.TYPE.equals(type)) {
+				if (IResponseWrapper.MULTI_TYPE.equals(type)) {
 					IResponseWrapper wrap = null;
 					if (proxyResults.containsKey(uid_request) && (wrap = proxyResults.get(uid_request)) != null) {
 						wrap.setResult(delivery.getBody());

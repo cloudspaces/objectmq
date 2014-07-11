@@ -96,6 +96,33 @@ public class ParameterQueue {
 	 * connection)
 	 */
 	public static String EXCLUSIVE_MQUEUE = "omq.exclusive_mqueue";
+	
+	
+	
+	
+	
+	
+	
+	
+	/**
+	 * Set if a queue must be durable. The queue won't be lost when RabbitMQ
+	 * crashes if DURABLE_QUEUE is set true.
+	 */
+	public static String DURABLE_PQUEUE = "omq.durable_pqueue";
+
+	/**
+	 * Set if server will delete a queue when is no longer in use
+	 */
+	public static String AUTO_DELETE_PQUEUE = "omq.auto_pdelete";
+
+	/**
+	 * Set if we are declaring an exclusive queue (restricted to this
+	 * connection)
+	 */
+	public static String EXCLUSIVE_PQUEUE = "omq.exclusive_pqueue";
+	
+	
+	
 
 	/**
 	 * The MESSAGE_TTL_IN_QUEUES controls for how long a message published to
@@ -141,9 +168,11 @@ public class ParameterQueue {
 	 */
 	public static long DEFAULT_TIMEOUT = 1 * 1000 * 60;
 
+	
 	public static String DEFAULT_USER = "guest";
 	public static String DEFAULT_PASS = "guest";
 	public static String DEFAULT_RABBIT_HOST = "localhost";
 	public static String DEFAULT_PORT = "5672";
+	public static String DEFAULT_EXCHANGE = "ObjectMQ";
 
 }

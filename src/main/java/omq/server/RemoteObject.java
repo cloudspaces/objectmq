@@ -33,6 +33,7 @@ public abstract class RemoteObject implements Remote {
 	private String UID;
 	private Properties env;
 	private transient Broker broker;
+	private List<RabbitProperties> configList;
 	private transient RemoteThreadPool pool;
 	private transient Map<String, List<Class<?>>> params;
 
@@ -49,7 +50,8 @@ public abstract class RemoteObject implements Remote {
 	}
 
 	/**
-	 * This method starts a remoteObject.
+	 * This method starts a remoteObject. It will create a new UID for this
+	 * remoteObject
 	 * 
 	 * @param reference
 	 *            - broker's binding referece
@@ -60,8 +62,27 @@ public abstract class RemoteObject implements Remote {
 	 * @throws Exception
 	 */
 	public void startRemoteObject(String reference, Broker broker, Properties env) throws Exception {
+		String UID = java.util.UUID.randomUUID().toString();
+		startRemoteObject(reference, UID, broker, env);
+	}
+
+	/**
+	 * This method starts a remoteObject and sets an UID
+	 * 
+	 * @param reference
+	 *            - broker's binding referece
+	 * @param UID
+	 *            - Unique Id for this particular remoteObject
+	 * @param broker
+	 *            - broker that binds this remoteObject
+	 * @param env
+	 *            - properties of this remoteObject
+	 * @throws Exception
+	 */
+	public void startRemoteObject(String reference, String UID, Broker broker, Properties env) throws Exception {
 		this.broker = broker;
 		this.reference = reference;
+		this.UID = UID;
 		this.env = env;
 
 		this.params = new HashMap<String, List<Class<?>>>();
@@ -79,11 +100,6 @@ public abstract class RemoteObject implements Remote {
 		// Create the pool & start it
 		pool = new RemoteThreadPool(numThreads, this);
 		pool.startPool();
-	}
-
-	public void startRemoteObject(String reference, String UID, Broker broker, Properties env) throws Exception {
-		this.UID = UID;
-		startRemoteObject(reference, broker, env);
 	}
 
 	@Override
@@ -216,6 +232,14 @@ public abstract class RemoteObject implements Remote {
 
 	public void setUID(String uID) {
 		UID = uID;
+	}
+
+	public List<RabbitProperties> getConfigList() {
+		return configList;
+	}
+
+	public void setConfigList(List<RabbitProperties> configList) {
+		this.configList = configList;
 	}
 
 }

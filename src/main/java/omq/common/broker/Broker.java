@@ -4,6 +4,8 @@ import java.io.IOException;
 import java.lang.reflect.Proxy;
 import java.util.HashMap;
 import java.util.Hashtable;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
@@ -17,6 +19,7 @@ import omq.common.util.Serializer;
 import omq.exception.AlreadyBoundException;
 import omq.exception.InitBrokerException;
 import omq.exception.RemoteException;
+import omq.server.RabbitProperties;
 import omq.server.RemoteObject;
 
 import org.apache.log4j.Logger;
@@ -69,10 +72,6 @@ public class Broker {
 	}
 
 	public Broker(Properties env) throws Exception {
-		// Load log4j configuration
-		// URL log4jResource = Broker.class.getResource("/log4j.xml");
-		// DOMConfigurator.configure(log4jResource);
-
 		remoteObjs = new HashMap<String, RemoteObject>();
 		serializer = new Serializer(env);
 		environment = env;
@@ -85,14 +84,6 @@ public class Broker {
 			}
 			throw new InitBrokerException("The connection didn't work");
 		}
-
-		// try {
-		// tryConnection(env);
-		// } catch (Exception e) {
-		// channel.close();
-		// connection.close();
-		// throw new InitBrokerException("The connection didn't work");
-		// }
 	}
 
 	/**
@@ -164,7 +155,8 @@ public class Broker {
 	/**
 	 * 
 	 */
-	public synchronized void publishMessge(String exchange, String routingKey, BasicProperties props, byte[] bytesRequest) throws IOException {
+	public synchronized void publishMessge(String exchange, String routingKey, BasicProperties props, byte[] bytesRequest)
+			throws IOException {
 		if (!channel.isOpen()) {
 			logger.error("Broker's channel is closed opening a new one", channel.getCloseReason());
 			channel = getNewChannel();
@@ -202,6 +194,12 @@ public class Broker {
 		} catch (Exception e) {
 			throw new RemoteException(e);
 		}
+	}
+
+	// TODO funció nova superxula
+	public synchronized <T extends Remote> T lookup(String reference, String route, Class<T> contract) throws RemoteException {
+
+		return null;
 	}
 
 	/**
@@ -248,6 +246,11 @@ public class Broker {
 	 */
 	public void bind(String reference, RemoteObject remote) throws RemoteException, AlreadyBoundException {
 		bind(reference, remote, environment);
+	}
+
+	// TODO funció superxula bind
+	public void bind(String reference, RemoteObject remote, List<RabbitProperties> props) {
+
 	}
 
 	/**

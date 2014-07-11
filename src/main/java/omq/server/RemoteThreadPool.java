@@ -15,7 +15,6 @@ import org.apache.log4j.Logger;
 public class RemoteThreadPool {
 	private static final Logger logger = Logger.getLogger(RemoteThreadPool.class.getName());
 	private List<InvocationThread> workers;
-	private MultiInvocationThread multiWorker;
 
 	private int numThreads;
 	private RemoteObject obj;
@@ -31,13 +30,6 @@ public class RemoteThreadPool {
 
 		logger.info("ObjectMQ reference: " + obj.getRef() + ", creating: " + numThreads);
 
-		try {
-			multiWorker = new MultiInvocationThread(obj);
-			multiWorker.start();
-		} catch (Exception e1) {
-			e1.printStackTrace();
-		}
-
 		for (int i = 0; i < numThreads; i++) {
 			try {
 				InvocationThread iThread = new InvocationThread(obj);
@@ -51,7 +43,6 @@ public class RemoteThreadPool {
 	}
 
 	public void kill() throws IOException {
-		multiWorker.kill();
 		for (InvocationThread iThread : workers) {
 			iThread.kill();
 		}
