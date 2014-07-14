@@ -11,6 +11,8 @@ import omq.client.annotation.SyncMethod;
  * 
  */
 
+//TODO check that all tests work
+
 @RemoteInterface
 public interface Calculator extends Remote {
 	@SyncMethod(timeout = 1500)
