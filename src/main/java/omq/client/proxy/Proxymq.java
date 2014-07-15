@@ -175,11 +175,11 @@ public class Proxymq implements InvocationHandler, Remote {
 			routingkey = "";
 		} else {
 			if(UID == null){
-				exchange = ""; // Set the default exchange
-				routingkey = UID;
-			}else{
 				exchange = this.exchange;
 				routingkey = reference;
+			}else{
+				exchange = ""; // Set the default exchange
+				routingkey = UID;
 			}
 		}
 

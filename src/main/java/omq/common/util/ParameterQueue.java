@@ -51,7 +51,7 @@ public class ParameterQueue {
 	 * Set the exchange where the objectmq are listening
 	 */
 	public static String RPC_EXCHANGE = "omq.rpc_exchange";
-	
+
 	/**
 	 * Set the exchange for private UID messages
 	 */
@@ -101,14 +101,13 @@ public class ParameterQueue {
 	 * connection)
 	 */
 	public static String EXCLUSIVE_MQUEUE = "omq.exclusive_mqueue";
-	
-	
-	
-	
-	
-	
-	
-	
+
+	/**
+	 * Set if the same broker can bind more than once the same object. By
+	 * default is set to false
+	 */
+	public static String MULTIPLE_BINDS = "omq.multiple_binds";
+
 	/**
 	 * Set if a queue must be durable. The queue won't be lost when RabbitMQ
 	 * crashes if DURABLE_QUEUE is set true.
@@ -125,9 +124,6 @@ public class ParameterQueue {
 	 * connection)
 	 */
 	public static String EXCLUSIVE_PQUEUE = "omq.exclusive_pqueue";
-	
-	
-	
 
 	/**
 	 * The MESSAGE_TTL_IN_QUEUES controls for how long a message published to
@@ -173,7 +169,6 @@ public class ParameterQueue {
 	 */
 	public static long DEFAULT_TIMEOUT = 1 * 1000 * 60;
 
-	
 	public static String DEFAULT_USER = "guest";
 	public static String DEFAULT_PASS = "guest";
 	public static String DEFAULT_RABBIT_HOST = "localhost";

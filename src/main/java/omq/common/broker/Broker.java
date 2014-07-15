@@ -49,19 +49,23 @@ public class Broker {
 	private Serializer serializer;
 	private boolean clientStarted = false;
 	private boolean connectionClosed = false;
+
+	private final boolean multipleBinds;
+
 	private Properties environment = null;
-	private Map<String, RemoteObject> remoteObjs;
+	private Map<String, List<RemoteObject>> remoteObjs;
 	private Map<String, Object> proxies = new Hashtable<String, Object>();
 	private Map<String, Object> multiProxies = new Hashtable<String, Object>();
 
 	public Broker() throws Exception {
 		Properties env = new Properties();
 
-		remoteObjs = new HashMap<String, RemoteObject>();
+		remoteObjs = new HashMap<String, List<RemoteObject>>();
 		serializer = new Serializer(env);
 		environment = env;
 		connection = OmqConnectionFactory.getNewConnection(env);
 		channel = connection.createChannel();
+		multipleBinds = Boolean.parseBoolean(env.getProperty(ParameterQueue.MULTIPLE_BINDS, "false"));
 		addFaultTolerance();
 		if (!connection.isOpen() || !channel.isOpen()) {
 			if (connection.isOpen()) {
@@ -72,11 +76,12 @@ public class Broker {
 	}
 
 	public Broker(Properties env) throws Exception {
-		remoteObjs = new HashMap<String, RemoteObject>();
+		remoteObjs = new HashMap<String, List<RemoteObject>>();
 		serializer = new Serializer(env);
 		environment = env;
 		connection = OmqConnectionFactory.getNewConnection(env);
 		channel = connection.createChannel();
+		multipleBinds = Boolean.parseBoolean(env.getProperty(ParameterQueue.MULTIPLE_BINDS, "false"));
 		addFaultTolerance();
 		if (!connection.isOpen() || !channel.isOpen()) {
 			if (connection.isOpen()) {
@@ -248,9 +253,26 @@ public class Broker {
 		bind(reference, remote, environment);
 	}
 
-	// TODO funció superxula bind
-	public void bind(String reference, RemoteObject remote, List<RabbitProperties> props) {
-
+	/**
+	 * Binds the reference to the specified remote object. This function uses
+	 * the broker's environment and needs a RabbitProperties list to configure
+	 * the queues. This method can be used when custom queue properties are
+	 * needed. Indeed it is possible to set which exchanges, queues, routes, etc
+	 * will be used once the RemoteObject is started.
+	 * 
+	 * @param reference
+	 *            - Binding name
+	 * @param remote
+	 *            - RemoteObject to bind
+	 * @param props
+	 *            - List of RabbitProperties
+	 * @throws RemoteException
+	 *             If the remote operation failed
+	 * @throws AlreadyBoundException
+	 *             If name is already bound.
+	 */
+	public void bind(String reference, RemoteObject remote, List<RabbitProperties> props) throws RemoteException, AlreadyBoundException {
+		bind(reference, remote, props, environment);
 	}
 
 	/**
@@ -271,13 +293,63 @@ public class Broker {
 	 *             If name is already bound.
 	 */
 	public void bind(String reference, RemoteObject remote, Properties env) throws RemoteException, AlreadyBoundException {
-		if (remoteObjs.containsKey(reference)) {
+		if (!multipleBinds && remoteObjs.containsKey(reference)) {
 			throw new AlreadyBoundException(reference);
 		}
 		// Try to start the remtoeObject listeners
 		try {
 			remote.startRemoteObject(reference, this, env);
-			remoteObjs.put(reference, remote);
+			List<RemoteObject> list;
+			if (remoteObjs.containsKey(reference)) {
+				list = remoteObjs.get(reference);
+			} else {
+				list = new LinkedList<RemoteObject>();
+			}
+			list.add(remote);
+			remoteObjs.put(reference, list);
+		} catch (Exception e) {
+			throw new RemoteException(e);
+		}
+	}
+
+	/**
+	 * Binds the reference to the specified remote object. This function uses a
+	 * custom environment which will be useful to configure the private queue of
+	 * a RemoteObject. This method can be used when custom queue properties are
+	 * needed. Indeed it is possible to set which exchanges, queues, routes, etc
+	 * will be used once the RemoteObject is started.
+	 * 
+	 * @param reference
+	 *            - Binding name
+	 * @param remote
+	 *            - RemoteObject to bind* @param props
+	 * @param env
+	 *            - Environment used just to set the following parameters of the
+	 *            object's private queue: durable, exclusive, autoDelete. The
+	 *            private queue will be created using the UID name.
+	 * @throws RemoteException
+	 *             If the remote operation failed
+	 * @throws AlreadyBoundException
+	 *             If name is already bound.
+	 */
+	public void bind(String reference, RemoteObject remote, List<RabbitProperties> props, Properties env) throws RemoteException,
+			AlreadyBoundException {
+		if (!multipleBinds && remoteObjs.containsKey(reference)) {
+			throw new AlreadyBoundException(reference);
+		}
+		// Try to start the remtoeObject listeners
+		try {
+			// set config before the object is started
+			remote.setConfigList(props);
+			remote.startRemoteObject(reference, this, env);
+			List<RemoteObject> list;
+			if (remoteObjs.containsKey(reference)) {
+				list = remoteObjs.get(reference);
+			} else {
+				list = new LinkedList<RemoteObject>();
+			}
+			list.add(remote);
+			remoteObjs.put(reference, list);
 		} catch (Exception e) {
 			throw new RemoteException(e);
 		}
@@ -296,9 +368,54 @@ public class Broker {
 	 */
 	public void unbind(String reference) throws RemoteException, IOException {
 		if (remoteObjs.containsKey(reference)) {
-			RemoteObject remote = remoteObjs.get(reference);
-			remote.kill();
+			List<RemoteObject> list = remoteObjs.get(reference);
+			for (RemoteObject remote : list) {
+				remote.kill();
+			}
+			remoteObjs.remove(reference);
 		} else {
+			throw new RemoteException("The object referenced by 'reference' does not exist in the Broker");
+		}
+
+	}
+
+	/**
+	 * Unbinds a remoteObject 
+	 * 
+	 * @param reference
+	 *            - Binding name
+	 * @throws RemoteException
+	 *             If the remote operation failed
+	 * @throws IOException
+	 *             If there are problems while killing the threads
+	 */
+	public void unbind(String reference, String uid) throws RemoteException, IOException {
+		boolean found = false;
+		if (remoteObjs.containsKey(reference)) {
+			List<RemoteObject> list = remoteObjs.get(reference);
+			int[] remove = new int[list.size()];
+			int x = 0, i = 0;
+			// it can be more than one object with the same uid
+			for (RemoteObject remote : list) {
+				if (remote.getUID().equals(uid)) {
+					remote.kill();
+					found = true;
+					remove[i++] = x;
+				}
+				x++;
+			}
+			
+			//Remove all the elements
+			for(int r : remove){ 
+				list.remove(r);
+			}
+			
+			if(list.size() == 0){
+				remoteObjs.remove(reference);
+			}
+
+		}
+		if (!found) {
 			throw new RemoteException("The object referenced by 'reference' does not exist in the Broker");
 		}
 
