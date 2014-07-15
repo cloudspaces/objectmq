@@ -51,6 +51,11 @@ public class ParameterQueue {
 	 * Set the exchange where the objectmq are listening
 	 */
 	public static String RPC_EXCHANGE = "omq.rpc_exchange";
+	
+	/**
+	 * Set the exchange for private UID messages
+	 */
+	public static String RPC_PRIVATE_EXCHANGE = "omq.rpc_private_exchange";
 
 	/**
 	 * Set the clients reply queue. Every client must have a different queue
@@ -173,6 +178,7 @@ public class ParameterQueue {
 	public static String DEFAULT_PASS = "guest";
 	public static String DEFAULT_RABBIT_HOST = "localhost";
 	public static String DEFAULT_PORT = "5672";
-	public static String DEFAULT_EXCHANGE = "ObjectMQ";
+	public static String DEFAULT_EXCHANGE = "rpc_exchange";
+	public static String DEFAULT_PRIVATE_EXCHANGE = "rpc_private_exchange";
 
 }

@@ -97,7 +97,7 @@ public class Proxymq implements InvocationHandler, Remote {
 		// TODO what is better to use a new channel or to use the same?
 		// this.channel = Broker.getChannel();
 		env = broker.getEnvironment();
-		exchange = env.getProperty(ParameterQueue.RPC_EXCHANGE, "");
+		exchange = env.getProperty(ParameterQueue.RPC_EXCHANGE, ParameterQueue.DEFAULT_EXCHANGE);
 		multiExchange = multi + reference;
 		replyQueueName = env.getProperty(ParameterQueue.RPC_REPLY_QUEUE);
 
@@ -174,8 +174,13 @@ public class Proxymq implements InvocationHandler, Remote {
 			exchange = multiExchange;
 			routingkey = "";
 		} else {
-			exchange = this.exchange;
-			routingkey = UID == null ? reference : UID;
+			if(UID == null){
+				exchange = ""; // Set the default exchange
+				routingkey = UID;
+			}else{
+				exchange = this.exchange;
+				routingkey = reference;
+			}
 		}
 
 		// Add the correlation ID and create a replyTo property

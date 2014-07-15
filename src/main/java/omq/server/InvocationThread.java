@@ -1,5 +1,6 @@
 package omq.server;
 
+import java.net.ConnectException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -68,7 +69,10 @@ public class InvocationThread extends AInvocationThread {
 		if (configList == null) {
 			configList = new ArrayList<RabbitProperties>();
 
-			String exchange = env.getProperty(ParameterQueue.RPC_EXCHANGE, "");
+			String exchange = env.getProperty(ParameterQueue.RPC_EXCHANGE, ParameterQueue.DEFAULT_EXCHANGE);
+			if ("".equals(exchange)) {
+				throw new ConnectException("Cannot use default exchange \"\" because it's used to bound all queues by RabbitMQ");
+			}
 			String queue = reference;
 			String routingKey = reference;
 
@@ -100,9 +104,7 @@ public class InvocationThread extends AInvocationThread {
 			boolean exclusive = props.isExclusive();
 			boolean autoDelete = props.isAutodelete();
 
-			if (!"".equals(exchange) || !"direct".equals(exchangeType)) {
-				channel.exchangeDeclare(exchange, exchangeType);
-			}// else is the default exchange "" && direct
+			channel.exchangeDeclare(exchange, exchangeType);
 
 			channel.queueDeclare(queue, durable, exclusive, autoDelete, null);
 
@@ -118,11 +120,15 @@ public class InvocationThread extends AInvocationThread {
 
 	private String startPrivateQueue() throws Exception {
 		// Get info about which exchange and queue will use
-		String exchange = env.getProperty(ParameterQueue.RPC_EXCHANGE, ParameterQueue.DEFAULT_EXCHANGE);
+
+		// String exchange =
+		// env.getProperty(ParameterQueue.RPC_PRIVATE_EXCHANGE,
+		// ParameterQueue.DEFAULT_PRIVATE_EXCHANGE); // not necessary since all
+		// queues are bound to the default exchange
 		multiExchange = multi + reference;
 
 		String queue = UID;
-		String uidKey = reference + "." + UID;
+		// String uidKey = reference + "." + UID;
 
 		// Multi queue (exclusive queue per remoteObject)
 		boolean durable = Boolean.parseBoolean(env.getProperty(ParameterQueue.DURABLE_PQUEUE, "false"));
@@ -130,17 +136,16 @@ public class InvocationThread extends AInvocationThread {
 		boolean autoDelete = Boolean.parseBoolean(env.getProperty(ParameterQueue.AUTO_DELETE_PQUEUE, "true"));
 
 		// Declare the exchanges and queue
-		channel.exchangeDeclare(exchange, "topic");
+		// channel.exchangeDeclare(exchange, "topic");
 		channel.exchangeDeclare(multiExchange, "fanout");
 		channel.queueDeclare(queue, durable, exclusive, autoDelete, null);
 
 		// Bind both keys to the uid queue
 		channel.queueBind(queue, multiExchange, "");
-		channel.queueBind(queue, exchange, uidKey);
+		// channel.queueBind(queue, exchange, uidKey);
 
-		logger.info("RemoteObject: " + reference + " declared topic exchange: " + exchange + ", fanout exchange: " + multiExchange
-				+ ", routing key: " + uidKey + ", Queue: " + queue + ", Durable: " + durable + ", Exclusive: " + exclusive
-				+ ", AutoDelete: " + autoDelete);
+		logger.info("RemoteObject: " + reference + " declared fanout exchange: " + multiExchange + ", Queue: " + queue + ", Durable: "
+				+ durable + ", Exclusive: " + exclusive + ", AutoDelete: " + autoDelete);
 
 		return queue;
 	}
