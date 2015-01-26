@@ -138,7 +138,9 @@ public abstract class AInvocationThread extends Thread {
 
 			BasicProperties props = delivery.getProperties();
 
-			BasicProperties replyProps = new BasicProperties.Builder().appId(obj.getRef()).correlationId(props.getCorrelationId()).type(getType(delivery)).build();
+			// Old versions had obj.getRef() but now appId means the proxy reference -> name ( + exchange + route) 
+			String appId = delivery.getProperties().getAppId(); 
+			BasicProperties replyProps = new BasicProperties.Builder().appId(appId).correlationId(props.getCorrelationId()).type(getType(delivery)).build();
 
 			byte[] bytesResponse = serializer.serialize(serializerType, resp);
 			channel.basicPublish("", props.getReplyTo(), replyProps, bytesResponse);

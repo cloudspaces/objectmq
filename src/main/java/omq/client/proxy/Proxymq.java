@@ -50,6 +50,9 @@ public class Proxymq implements InvocationHandler, Remote {
 	private String reference;
 	private String UID;
 	private transient String exchange;
+
+	private transient String routingKey;
+
 	private transient String multiExchange;
 	private transient String replyQueueName;
 	private transient String serializerType;
@@ -90,6 +93,7 @@ public class Proxymq implements InvocationHandler, Remote {
 	 */
 	public Proxymq(String reference, Class<?> clazz, Broker broker) throws Exception {
 		this.reference = reference;
+		this.routingKey = reference;
 		this.broker = broker;
 		rListener = broker.getResponseListener();
 		serializer = broker.getSerializer();
@@ -98,6 +102,75 @@ public class Proxymq implements InvocationHandler, Remote {
 		// this.channel = Broker.getChannel();
 		env = broker.getEnvironment();
 		exchange = env.getProperty(ParameterQueue.RPC_EXCHANGE, ParameterQueue.DEFAULT_EXCHANGE);
+		multiExchange = multi + reference;
+		replyQueueName = env.getProperty(ParameterQueue.RPC_REPLY_QUEUE);
+
+		// set the serializer type
+		serializerType = env.getProperty(ParameterQueue.PROXY_SERIALIZER, Serializer.JAVA);
+		if (env.getProperty(ParameterQueue.DELIVERY_MODE) != null) {
+			deliveryMode = Integer.parseInt(env.getProperty(ParameterQueue.DELIVERY_MODE));
+		}
+
+		// Create a new hashmap and registry it in rListener
+		results = new HashMap<String, IResponseWrapper>();
+		rListener.registerProxy(this);
+	}
+
+	// TODO check this constructor 
+	/**
+	 * 
+	 * @param reference
+	 * @param routingKey
+	 * @param clazz
+	 * @param broker
+	 * @throws Exception
+	 */
+	public Proxymq(String reference, String routingKey, Class<?> clazz, Broker broker) throws Exception {
+		env = broker.getEnvironment();
+
+		this.exchange = env.getProperty(ParameterQueue.RPC_EXCHANGE, ParameterQueue.DEFAULT_EXCHANGE);
+		this.routingKey = routingKey;
+		this.reference = reference + "*" + exchange + "*" + routingKey;
+
+		this.broker = broker;
+		rListener = broker.getResponseListener();
+		serializer = broker.getSerializer();
+
+		multiExchange = multi + reference;
+		replyQueueName = env.getProperty(ParameterQueue.RPC_REPLY_QUEUE);
+
+		// set the serializer type
+		serializerType = env.getProperty(ParameterQueue.PROXY_SERIALIZER, Serializer.JAVA);
+		if (env.getProperty(ParameterQueue.DELIVERY_MODE) != null) {
+			deliveryMode = Integer.parseInt(env.getProperty(ParameterQueue.DELIVERY_MODE));
+		}
+
+		// Create a new hashmap and registry it in rListener
+		results = new HashMap<String, IResponseWrapper>();
+		rListener.registerProxy(this);
+	}
+
+	// TODO check this constructor 
+	/**
+	 * 
+	 * @param reference
+	 * @param exchange
+	 * @param routingKey
+	 * @param clazz
+	 * @param broker
+	 * @throws Exception
+	 */
+	public Proxymq(String reference, String exchange, String routingKey, Class<?> clazz, Broker broker) throws Exception {
+		this.reference = reference + "*" + exchange + "*" + routingKey;
+		this.broker = broker;
+		this.exchange = exchange;
+		this.routingKey = routingKey;
+		rListener = broker.getResponseListener();
+		serializer = broker.getSerializer();
+
+		// TODO what is better to use a new channel or to use the same?
+		// this.channel = Broker.getChannel();
+		env = broker.getEnvironment();
 		multiExchange = multi + reference;
 		replyQueueName = env.getProperty(ParameterQueue.RPC_REPLY_QUEUE);
 
@@ -174,25 +247,25 @@ public class Proxymq implements InvocationHandler, Remote {
 			exchange = multiExchange;
 			routingkey = "";
 		} else {
-			if(UID == null){
+			if (UID == null) {
 				exchange = this.exchange;
-				routingkey = reference;
-			}else{
+				routingkey = this.routingKey;
+			} else {
 				exchange = ""; // Set the default exchange
 				routingkey = UID;
 			}
 		}
 
 		// Add the correlation ID and create a replyTo property
-		BasicProperties props = new BasicProperties.Builder().appId(reference).correlationId(corrId).replyTo(replyQueueName).type(serializerType)
-				.deliveryMode(deliveryMode).build();
+		BasicProperties props = new BasicProperties.Builder().appId(reference).correlationId(corrId).replyTo(replyQueueName)
+				.type(serializerType).deliveryMode(deliveryMode).build();
 
 		// Publish the message
 		byte[] bytesRequest = serializer.serialize(serializerType, request);
 		broker.publishMessge(exchange, routingkey, props, bytesRequest);
-		logger.debug("Proxymq: " + reference + " invokes '" + request.getMethod() + "' , corrID: " + corrId + ", exchange: " + exchange + ", replyQueue: "
-				+ replyQueueName + ", serializerType: " + serializerType + ", multi call: " + request.isMulti() + ", async call: " + request.isAsync()
-				+ ", delivery mode: " + deliveryMode);
+		logger.debug("Proxymq: " + reference + " invokes '" + request.getMethod() + "' , corrID: " + corrId + ", exchange: " + exchange
+				+ ", replyQueue: " + replyQueueName + ", serializerType: " + serializerType + ", multi call: " + request.isMulti()
+				+ ", async call: " + request.isAsync() + ", delivery mode: " + deliveryMode);
 	}
 
 	/**

@@ -92,9 +92,11 @@ public class InvocationThread extends AInvocationThread {
 			String exchange = props.getExchange();
 
 			String exchangeType = props.getExchangeType();
-			if (!"direct".equals(exchangeType) && !"topic".equals(exchangeType) && !"fanout".equals(exchangeType)) {
-				exchangeType = "direct";
-			}
+			// if (!"direct".equals(exchangeType) &&
+			// !"topic".equals(exchangeType) && !"fanout".equals(exchangeType))
+			// {
+			// exchangeType = "direct";
+			// }
 			String queue = props.getQueue();
 
 			queues.add(queue);

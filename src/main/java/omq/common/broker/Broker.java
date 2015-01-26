@@ -202,9 +202,32 @@ public class Broker {
 	}
 
 	// TODO funció nova superxula
-	public synchronized <T extends Remote> T lookup(String reference, String route, Class<T> contract) throws RemoteException {
+	@SuppressWarnings("unchecked")
+	public synchronized <T extends Remote> T lookup(String reference, String exchange, String routingKey, Class<T> contract)
+			throws RemoteException {
+		try {
 
-		return null;
+			if (!clientStarted) {
+				initClient();
+			}
+
+			String ref = reference + "*" + exchange + "*" + routingKey;
+
+			if (!proxies.containsKey(ref)) {
+				Proxymq proxy = new Proxymq(reference, exchange, routingKey, contract, this);
+
+				assert ref.equals(proxy.getRef());
+
+				Class<?>[] array = { contract };
+				Object newProxy = Proxy.newProxyInstance(contract.getClassLoader(), array, proxy);
+				proxies.put(ref, newProxy);
+				return (T) newProxy;
+			}
+			return (T) proxies.get(ref);
+
+		} catch (Exception e) {
+			throw new RemoteException(e);
+		}
 	}
 
 	/**
@@ -380,7 +403,7 @@ public class Broker {
 	}
 
 	/**
-	 * Unbinds a remoteObject 
+	 * Unbinds a remoteObject
 	 * 
 	 * @param reference
 	 *            - Binding name
@@ -404,13 +427,13 @@ public class Broker {
 				}
 				x++;
 			}
-			
-			//Remove all the elements
-			for(int r : remove){ 
+
+			// Remove all the elements
+			for (int r : remove) {
 				list.remove(r);
 			}
-			
-			if(list.size() == 0){
+
+			if (list.size() == 0) {
 				remoteObjs.remove(reference);
 			}
 

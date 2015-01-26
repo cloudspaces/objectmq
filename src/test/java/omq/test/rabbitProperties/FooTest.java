@@ -1,15 +1,17 @@
-package omq.test.defaultExchange;
+package omq.test.rabbitProperties;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.*;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
 import java.util.Properties;
 
 import omq.common.broker.Broker;
 import omq.common.util.ParameterQueue;
 import omq.common.util.Serializer;
-import omq.test.calculator.Calculator;
+import omq.server.RabbitProperties;
 
 import org.junit.After;
 import org.junit.BeforeClass;
@@ -22,7 +24,7 @@ import org.junit.runners.Parameterized.Parameters;
 public class FooTest {
 
 	private static Broker broker;
-	private static Foo foo;
+	private static Foo a1, a2, c;
 
 	public FooTest(String type) throws Exception {
 		Properties env = new Properties();
@@ -37,12 +39,13 @@ public class FooTest {
 		env.setProperty(ParameterQueue.RABBIT_PORT, "5672");
 
 		broker = new Broker(env);
-		foo = broker.lookup("foo", Foo.class);
+		a1 = broker.lookup("a", "global_exchange", "a", Foo.class);
+		a2 = broker.lookup("a", "global_exchange", "b", Foo.class);
 	}
 
 	@Parameters
 	public static Collection<Object[]> data() {
-		Object[][] data = new Object[][] { { Serializer.JAVA }, { Serializer.GSON }, { Serializer.KRYO } };
+		Object[][] data = new Object[][] { { Serializer.JAVA } , { Serializer.GSON }, { Serializer.KRYO } };
 		return Arrays.asList(data);
 	}
 
@@ -56,9 +59,33 @@ public class FooTest {
 		env.setProperty(ParameterQueue.RABBIT_HOST, "127.0.0.1");
 		env.setProperty(ParameterQueue.RABBIT_PORT, "5672");
 
-		FooImpl foo = new FooImpl();
+		//
+		env.setProperty(ParameterQueue.MULTIPLE_BINDS, "true");
+
+		FooImpl a1 = new FooImpl('a');
+		FooImpl a2 = new FooImpl('b');
+
 		Broker broker = new Broker(env);
-		broker.bind("foo", foo);
+
+		/*
+		 * a
+		 */
+		List<String> routesA = new ArrayList<String>();
+		routesA.add("a");
+		RabbitProperties aProps = new RabbitProperties("aQueue", "global_exchange", routesA);
+		List<RabbitProperties> aRabbit = new ArrayList<RabbitProperties>();
+		aRabbit.add(aProps);
+		broker.bind("a", a1, aRabbit);
+
+		/*
+		 * b
+		 */
+		List<String> routesA2 = new ArrayList<String>();
+		routesA2.add("b");
+		RabbitProperties a2Props = new RabbitProperties("bQueue", "global_exchange", routesA2);
+		List<RabbitProperties> a2Rabbit = new ArrayList<RabbitProperties>();
+		a2Rabbit.add(a2Props);
+		broker.bind("a", a2, a2Rabbit);
 
 		System.out.println("Server started");
 	}
@@ -70,7 +97,19 @@ public class FooTest {
 
 	@Test
 	public void test() {
-		assertEquals(0, foo.returnZero());
+
+		assertEquals('a', a1.getChar());
+		assertEquals('b', a2.getChar());
+
+		a1.setChar('A');
+		assertEquals('A', a1.getChar());
+
+		a2.setChar('B');
+		assertEquals('B', a2.getChar());
+		
+		a1.setChar('a');
+		a2.setChar('b');
+
 	}
 
 }

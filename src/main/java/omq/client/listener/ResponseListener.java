@@ -78,7 +78,9 @@ public class ResponseListener extends Thread {
 
 				// Check whether the response is multi or not
 				if (IResponseWrapper.MULTI_TYPE.equals(type)) {
+					// Using the dynamic binding we get the correct response
 					IResponseWrapper wrap = null;
+
 					if (proxyResults.containsKey(uid_request) && (wrap = proxyResults.get(uid_request)) != null) {
 						wrap.setResult(delivery.getBody());
 					} else if (!proxyResults.containsKey(uid_request)) {
@@ -149,8 +151,8 @@ public class ResponseListener extends Thread {
 		} else {
 			channel.queueDeclare(reply_queue, durable, exclusive, autoDelete, args);
 		}
-		logger.info("ResponseListener creating queue: " + reply_queue + ", durable: " + durable + ", exclusive: " + exclusive + ", autoDelete: " + autoDelete
-				+ ", TTL: " + (ttl > 0 ? ttl : "not set"));
+		logger.info("ResponseListener creating queue: " + reply_queue + ", durable: " + durable + ", exclusive: " + exclusive
+				+ ", autoDelete: " + autoDelete + ", TTL: " + (ttl > 0 ? ttl : "not set"));
 
 		// Declare a new consumer
 		consumer = new QueueingConsumer(channel);
