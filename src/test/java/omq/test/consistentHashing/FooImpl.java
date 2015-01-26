@@ -26,4 +26,12 @@ public class FooImpl extends RemoteObject implements Foo {
 		return "Counter = " + counter;
 	}
 
+	/* (non-Javadoc)
+	 * @see omq.test.consistentHashing.Foo#getCounter()
+	 */
+	@Override
+	public int getCounter() {
+		return counter;
+	}
+
 }
